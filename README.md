@@ -1,6 +1,4 @@
 # SR2CB
-<h3>SR2CB</h3>
-
 <p>The Synchronous Redundant Ring Channel Bus (<i>S-R-square-Channel-Bus</i>) is a data bus with a open ring topology where a data <i>channel</i> is constructed from successive frames fixed bit/bits/byte/word/dword/qword/etc. positions. The
 SR2CB network protocol supports <i>synchronous</i> operation by means of a distributed clock mechanism. Each ring node has two full duplex (TX/RX) hardware ports.</p>
 
