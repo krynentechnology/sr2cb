@@ -1,0 +1,3 @@
+..\sr2cb_s.v
+..\sr2cb_m_phy_pre.v
+..\sr2cb_s_tb.sv
