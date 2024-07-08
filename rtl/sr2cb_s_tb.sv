@@ -41,23 +41,23 @@ module sr2cb_s_tb;
 localparam NR_CHANNELS = 4;
 localparam CHW = $clog2( NR_CHANNELS );
 
-reg        clk;
-reg        rst_n;
+reg        clk = 0;
+reg        rst_n = 0;
 wire       rx0m_clk;
 wire [7:0] rx0m_d;
 wire       rx0m_dv;
 wire       rx1m_clk;
 wire [7:0] rx1m_d;
 wire       rx1m_dv;
-reg        tx0m_clk;
-reg  [7:0] tx0m_d;
-reg        tx0m_dv;
+reg        tx0m_clk = 0;
+reg  [7:0] tx0m_d = 0;
+reg        tx0m_dv = 0;
 wire [7:0] phy_pre_0_d;
 wire       phy_pre_0_dv;
 wire       phy_pre_0_dr;
-reg        tx1m_clk;
-reg  [7:0] tx1m_d;
-reg        tx1m_dv;
+reg        tx1m_clk = 0;
+reg  [7:0] tx1m_d = 0;
+reg        tx1m_dv = 0;
 wire [7:0] phy_pre_1_d;
 wire       phy_pre_1_dv;
 wire       phy_pre_1_dr;
@@ -83,13 +83,13 @@ wire       rx0s0_ch_dv;
 wire       rx0s0_ch_dr;
 wire [7:0] tx0s0_ch_d;
 wire [CHW-1:0] rx0s0_tx0_ch;
-reg  [7:0] rx1s0_ch_d;
-reg        rx1s0_ch_dv;
+reg  [7:0] rx1s0_ch_d = 0;
+reg        rx1s0_ch_dv = 0;
 wire       rx1s0_ch_dr;
 wire [7:0] tx1s0_ch_d;
 wire [CHW-1:0] rx1s0_tx1_ch;
-reg  [7:0] rx0s2_ch_d;
-reg        rx0s2_ch_dv;
+reg  [7:0] rx0s2_ch_d = 0;
+reg        rx0s2_ch_dv = 0;
 wire       rx0s2_ch_dr;
 wire [7:0] tx0s2_ch_d;
 wire [CHW-1:0] rx0s2_tx0_ch;
@@ -99,8 +99,8 @@ wire       rx1s2_ch_dr;
 wire [7:0] tx1s2_ch_d;
 wire [CHW-1:0] rx1s2_tx1_ch;
 /*---------------------------*/
-reg   [7:0] rx0_d_count;
-reg   [7:0] rx1_d_count;
+reg   [7:0] rx0_d_count = 0;
+reg   [7:0] rx1_d_count = 0;
 wire [67:0] rx0s0_rt_clk_count;
 wire [67:0] rx1s0_rt_clk_count;
 wire [67:0] rx0s1_rt_clk_count;
@@ -159,12 +159,12 @@ sr2cb_s slv_node_0(
 
 defparam slv_node_0.NR_CHANNELS = NR_CHANNELS;
 
-reg [7:0] tx0p_d;
-reg       tx0p_dv;
-reg [7:0] tx0m_d_i;
-reg       tx0m_dv_i;
-reg [7:0] tx0m_d_ii;
-reg       tx0m_dv_ii;
+reg [7:0] tx0p_d = 0;
+reg       tx0p_dv = 0;
+reg [7:0] tx0m_d_i = 0;
+reg       tx0m_dv_i = 0;
+reg [7:0] tx0m_d_ii = 0;
+reg       tx0m_dv_ii = 0;
 /*============================================================================*/
 always @( posedge tx0m_clk ) // Two clock cycle interface RX signal delay
 /*============================================================================*/
@@ -183,8 +183,8 @@ begin
     end
 end
 
-reg [7:0] tx0s0_d_i;
-reg       tx0s0_dv_i;
+reg [7:0] tx0s0_d_i = 0;
+reg       tx0s0_dv_i = 0;
 /*============================================================================*/
 always @( posedge rx0m_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -199,8 +199,8 @@ end
 assign rx0m_d  = tx0s0_d_i;
 assign rx0m_dv = tx0s0_dv_i;
 
-reg [7:0] tx1s0_d_i;
-reg       tx1s0_dv_i;
+reg [7:0] tx1s0_d_i = 0;
+reg       tx1s0_dv_i = 0;
 /*============================================================================*/
 always @( posedge tx1s0_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -250,8 +250,8 @@ sr2cb_s slv_node_1(
 
 defparam slv_node_1.NR_CHANNELS = NR_CHANNELS;
 
-reg [7:0] tx0s1_d_i;
-reg       tx0s1_dv_i;
+reg [7:0] tx0s1_d_i = 0;
+reg       tx0s1_dv_i = 0;
 /*============================================================================*/
 always @( posedge tx0s1_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -264,8 +264,8 @@ begin
     end
 end
 
-reg [7:0] tx1s1_d_i;
-reg       tx1s1_dv_i;
+reg [7:0] tx1s1_d_i = 0;
+reg       tx1s1_dv_i = 0;
 /*============================================================================*/
 always @( posedge tx1s1_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -317,8 +317,8 @@ sr2cb_s slv_node_2(
 
 defparam slv_node_2.NR_CHANNELS = NR_CHANNELS;
 
-reg [7:0] tx0s2_d_i;
-reg       tx0s2_dv_i;
+reg [7:0] tx0s2_d_i = 0;
+reg       tx0s2_dv_i = 0;
 /*============================================================================*/
 always @( posedge tx0s2_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -331,12 +331,12 @@ begin
     end
 end
 
-reg [7:0] tx1p_d;
-reg       tx1p_dv;
-reg [7:0] tx1m_d_i;
-reg       tx1m_dv_i;
-reg [7:0] tx1m_d_ii;
-reg       tx1m_dv_ii;
+reg [7:0] tx1p_d = 0;
+reg       tx1p_dv = 0;
+reg [7:0] tx1m_d_i = 0;
+reg       tx1m_dv_i = 0;
+reg [7:0] tx1m_d_ii = 0;
+reg       tx1m_dv_ii = 0;
 /*============================================================================*/
 always @( posedge tx1m_clk ) // Two clock cycle interface RX signal delay
 /*============================================================================*/
@@ -367,8 +367,8 @@ sr2cb_m_phy_pre phy_pre_1(
     .tx_dv(phy_pre_1_dv)
 );
 
-reg [7:0] tx1s2_d_i;
-reg       tx1s2_dv_i;
+reg [7:0] tx1s2_d_i = 0;
+reg       tx1s2_dv_i = 0;
 /*============================================================================*/
 always @( posedge rx1m_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -382,32 +382,6 @@ begin
 end
 assign rx1m_d  = tx1s2_d_i;
 assign rx1m_dv = tx1s2_dv_i;
-
-initial begin
-    tx0m_d_i   = 0;
-    tx0m_dv_i  = 0;
-    tx0s0_d_i  = 0;
-    tx0s0_dv_i = 0;
-    tx1s0_d_i  = 0;
-    tx1s0_dv_i = 0;
-    tx0s1_d_i  = 0;
-    tx0s1_dv_i = 0;
-    tx1s1_d_i  = 0;
-    tx1s1_dv_i = 0;
-    tx0s2_d_i  = 0;
-    tx0s2_dv_i = 0;
-    tx1s2_d_i  = 0;
-    tx1s2_dv_i = 0;
-    tx1m_d_i   = 0;
-    tx1m_dv_i  = 0;
-    /*------------*/
-    rx1s0_ch_d  = 0;
-    rx1s0_ch_dv = 0;
-    rx0s2_ch_d  = 0;
-    rx0s2_ch_dv = 0;
-    rx0_d_count = 0;
-    rx1_d_count = 0;
-end
 
 reg [12:0] node_pos[0:1];
 reg [12:0] node_pos_rp[0:1]; // The node positions of returned packets
@@ -486,12 +460,12 @@ end
 endtask
 
 reg [27:0] delay_m[0:1]; // Delay measured by master node
-reg [10:0] delay_count;
-reg        delay_count_en;
+reg [10:0] delay_count = 0;
+reg        delay_count_en = 0;
 reg [27:0] delay[0:2][0:1]; // Delay received from all nodes
-reg        wait_for_rx0m_dv;
-reg        wait_for_rx1m_dv;
-reg [63:0] master_clk_count;
+reg        wait_for_rx0m_dv = 0;
+reg        wait_for_rx1m_dv = 0;
+reg [63:0] master_clk_count = 0;
 
 integer k;
 /*============================================================================*/
@@ -604,7 +578,7 @@ begin
 end
 endtask
 
-integer m;
+integer m = 0;
 /*============================================================================*/
 task send_r0_packet( input [13:0] c_s );
 /*============================================================================*/
@@ -630,7 +604,7 @@ begin
 end
 endtask
 
-integer n;
+integer n = 0;
 /*============================================================================*/
 task send_r1_packet( input [13:0] c_s );
 /*============================================================================*/
@@ -660,12 +634,12 @@ endtask
 localparam NODE_POS_OFFSET = 8; // PREAMBLE_SFD for phy_pre_0/1
 
 reg [7:0]  rx0_d_c;
-reg [1:0]  rx0_dv_i;
-reg [2:0]  rx0_status;
-reg [13:0] rx0_c_s;
-reg [3:0]  rx0_nb_bytes;
-reg [5:0]  rx0_nb_samples;
-reg        rx0_loopback;
+reg [1:0]  rx0_dv_i = 0;
+reg [2:0]  rx0_status = `eR_IDLE;
+reg [13:0] rx0_c_s = 0;
+reg [3:0]  rx0_nb_bytes = 0;
+reg [5:0]  rx0_nb_samples = 0;
+reg        rx0_loopback = 0;
 wire       rx0_nb_samples_c;
 wire       rx0_clk_sync_c_s;
 wire       rx0_clk_sync_cmd;
@@ -799,12 +773,12 @@ always @( posedge rx0m_clk ) begin : rx0_process
 end
 
 reg [7:0]  rx1_d_c;
-reg [1:0]  rx1_dv_i;
-reg [2:0]  rx1_status;
-reg [13:0] rx1_c_s;
-reg [3:0]  rx1_nb_bytes;
-reg [5:0]  rx1_nb_samples;
-reg        rx1_loopback;
+reg [1:0]  rx1_dv_i = 0;
+reg [2:0]  rx1_status = `eR_IDLE;
+reg [13:0] rx1_c_s = 0;
+reg [3:0]  rx1_nb_bytes = 0;
+reg [5:0]  rx1_nb_samples = 0;
+reg        rx1_loopback = 0;
 wire       rx1_nb_samples_c;
 wire       rx1_clk_sync_c_s;
 wire       rx1_clk_sync_cmd;
@@ -937,41 +911,17 @@ always @( posedge rx1m_clk ) begin : rx1_process
     end
 end
 
-reg [1:0]  rx0m_clk_i;
-reg [1:0]  rx1m_clk_i;
-reg [1:0]  tx0m_clk_i;
-reg [1:0]  tx1m_clk_i;
-reg [12:0] rx0_nb_bytes_i;
-reg [12:0] rx1_nb_bytes_i;
-/*----------------------*/
-reg rx0m_dv_posedge;
-reg tx0m_dv_posedge;
-reg rx1m_dv_posedge;
-reg tx1m_dv_posedge;
-/*============================================================================*/
-initial begin
-/*============================================================================*/
-    rx0m_clk_i = 0;
-    rx1m_clk_i = 0;
-    tx0m_clk_i = 0;
-    tx1m_clk_i = 0;
-    rx0_dv_i   = 0;
-    rx1_dv_i   = 0;
-    /*----------------*/
-    rx0_nb_bytes_i  = 0;
-    rx1_nb_bytes_i  = 0;
-    rx0m_dv_posedge = 0;
-    tx0m_dv_posedge = 0;
-    rx1m_dv_posedge = 0;
-    tx1m_dv_posedge = 0;
-    /*-----------------*/
-    delay_count      = 0;
-    delay_count_en   = 0;
-    wait_for_rx0m_dv = 0;
-    wait_for_rx1m_dv = 0;
-    /*------------------*/
-    master_clk_count = 0;
-end
+reg [1:0]  rx0m_clk_i = 0;
+reg [1:0]  rx1m_clk_i = 0;
+reg [1:0]  tx0m_clk_i = 0;
+reg [1:0]  tx1m_clk_i = 0;
+reg [12:0] rx0_nb_bytes_i = 0;
+reg [12:0] rx1_nb_bytes_i = 0;
+/*--------------------------*/
+reg rx0m_dv_posedge = 0;
+reg tx0m_dv_posedge = 0;
+reg rx1m_dv_posedge = 0;
+reg tx1m_dv_posedge = 0;
 
 /*============================================================================*/
 always @( posedge clk ) begin : handle_ports
@@ -1039,9 +989,9 @@ always #40 tx1m_clk = ~tx1m_clk; // 12.5 MHz clock
 localparam [12:0] CLK_SYNC_CMD = `CLK_SYNC_0; // Select *_0, *_1, *_2 or *_3!
 localparam [12:0] CLK_SYNC_CMD_SET = CLK_SYNC_CMD | 13'h4;
 
-reg passed;
-integer i;
-integer j;
+reg passed = 0;
+integer i = 0;
+integer j = 0;
 /*============================================================================*/
 task ring_init;
 /*============================================================================*/
@@ -1170,30 +1120,9 @@ endtask
 /*============================================================================*/
 initial begin // Test bench
 /*============================================================================*/
-    rst_n    = 0;
-    clk      = 0;
-    passed   = 0;
-    tx0m_clk = 0;
-    tx0m_d   = 0;
-    tx0m_dv  = 0;
-    tx0p_d   = 0;
-    tx0p_dv  = 0;
-    tx1m_clk = 0;
-    tx1m_d   = 0;
-    tx1m_dv  = 0;
-    tx1p_d   = 0;
-    tx1p_dv  = 0;
-    /*---------*/
-    rx0_status     = `eR_IDLE;
-    rx0_c_s        = 0;
-    rx0_nb_bytes   = 0;
-    rx0_nb_samples = 0;
-    rx0_loopback   = 0;
-    rx1_status     = `eR_IDLE;
-    rx1_c_s        = 0;
-    rx1_nb_bytes   = 0;
-    rx1_nb_samples = 0;
-    rx1_loopback   = 0;
+    rst_n  = 0;
+    clk    = 0;
+    passed = 0;
     /*---------*/
     for ( j = 0; j < 3; j = j + 1 ) begin
         for ( i = 0; i < 2; i = i + 1 ) delay[j][i] = 0;
