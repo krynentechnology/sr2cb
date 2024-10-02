@@ -202,10 +202,14 @@ randomizer random(
 /*============================================================================*/
     .clk(clk),
     .rst_n(rst_n),
-    .random_out(random_out)
+    .rndm_ch(1'b0),
+    .rndm_ready(1'b1),
+    .rndm_seed(8'h0),
+    .rndm_out(random_out)
 );
+
+defparam random.NR_CHANNELS = 1;
 defparam random.OUTPUT_WIDTH = LFSR_TAP_WIDTH;
-defparam random.LFSR_TAP = 8'b10111000; // see Xilinx XAPP052
 
 /*============================================================================*/
 initial begin : param_check // Parameter check
