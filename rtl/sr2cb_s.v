@@ -201,11 +201,11 @@ wire [LFSR_TAP_WIDTH-1:0] random_out;
 randomizer random(
 /*============================================================================*/
     .clk(clk),
-    .rst_n(rst_n),
     .rndm_ch(1'b0),
-    .rndm_ready(1'b1),
     .rndm_seed(8'h0),
-    .rndm_out(random_out)
+    .rndm_init(~rst_n),
+    .rndm_out(random_out),
+    .rndm_ready(1'b1)
 );
 
 defparam random.NR_CHANNELS = 1;
