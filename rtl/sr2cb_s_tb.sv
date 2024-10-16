@@ -107,6 +107,26 @@ wire [67:0] rx0s1_rt_clk_count;
 wire [67:0] rx1s1_rt_clk_count;
 wire [67:0] rx0s2_rt_clk_count;
 wire [67:0] rx1s2_rt_clk_count;
+/*---------------------------*/
+reg [7:0] tx0p_d = 0;
+reg       tx0p_dv = 0;
+reg [7:0] tx0m_d_i = 0;
+reg       tx0m_dv_i = 0;
+reg [7:0] tx0m_d_ii = 0;
+reg       tx0m_dv_ii = 0;
+/*---------------------------*/
+reg [7:0] tx0s1_d_i = 0;
+reg       tx0s1_dv_i = 0;
+/*---------------------------*/
+reg [7:0] tx0s2_d_i = 0;
+reg       tx0s2_dv_i = 0;
+/*---------------------------*/
+reg [7:0] tx1p_d = 0;
+reg       tx1p_dv = 0;
+reg [7:0] tx1m_d_i = 0;
+reg       tx1m_dv_i = 0;
+reg [7:0] tx1m_d_ii = 0;
+reg       tx1m_dv_ii = 0;
 
 /*============================================================================*/
 sr2cb_m_phy_pre phy_pre_0(
@@ -159,12 +179,6 @@ sr2cb_s slv_node_0(
 
 defparam slv_node_0.NR_CHANNELS = NR_CHANNELS;
 
-reg [7:0] tx0p_d = 0;
-reg       tx0p_dv = 0;
-reg [7:0] tx0m_d_i = 0;
-reg       tx0m_dv_i = 0;
-reg [7:0] tx0m_d_ii = 0;
-reg       tx0m_dv_ii = 0;
 /*============================================================================*/
 always @( posedge tx0m_clk ) // Two clock cycle interface RX signal delay
 /*============================================================================*/
@@ -250,8 +264,6 @@ sr2cb_s slv_node_1(
 
 defparam slv_node_1.NR_CHANNELS = NR_CHANNELS;
 
-reg [7:0] tx0s1_d_i = 0;
-reg       tx0s1_dv_i = 0;
 /*============================================================================*/
 always @( posedge tx0s1_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -317,8 +329,6 @@ sr2cb_s slv_node_2(
 
 defparam slv_node_2.NR_CHANNELS = NR_CHANNELS;
 
-reg [7:0] tx0s2_d_i = 0;
-reg       tx0s2_dv_i = 0;
 /*============================================================================*/
 always @( posedge tx0s2_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -331,12 +341,6 @@ begin
     end
 end
 
-reg [7:0] tx1p_d = 0;
-reg       tx1p_dv = 0;
-reg [7:0] tx1m_d_i = 0;
-reg       tx1m_dv_i = 0;
-reg [7:0] tx1m_d_ii = 0;
-reg       tx1m_dv_ii = 0;
 /*============================================================================*/
 always @( posedge tx1m_clk ) // Two clock cycle interface RX signal delay
 /*============================================================================*/
@@ -516,6 +520,46 @@ begin
 end
 endtask
 
+reg [7:0]  rx0_d_c;
+reg [1:0]  rx0_dv_i = 0;
+reg [2:0]  rx0_status = `eR_IDLE;
+reg [13:0] rx0_c_s = 0;
+reg [3:0]  rx0_nb_bytes = 0;
+reg [5:0]  rx0_nb_samples = 0;
+reg        rx0_loopback = 0;
+wire       rx0_nb_samples_c;
+wire       rx0_clk_sync_c_s;
+wire       rx0_clk_sync_cmd;
+wire       rx0_clk_sync_st;
+wire       rx0_clk_sync_set_cmd;
+assign rx0_nb_samples_c = ( 2 << ( rx0_c_s & 13'h3 )) == rx0_nb_samples;
+assign rx0_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx0_c_s[12:3];
+assign rx0_clk_sync_cmd = rx0_clk_sync_c_s & rx0_c_s[13];
+assign rx0_clk_sync_st = rx0_clk_sync_c_s & !rx0_c_s[13] & !rx0_c_s[2];
+assign rx0_clk_sync_set_cmd = rx0_clk_sync_c_s & rx0_c_s[13] & rx0_c_s[2];
+assign rx0s0_ch_dv = rx0s0_ch_dr && ( 0 == rx0s0_tx0_ch );
+assign rx0s0_ch_d = rx0_d_count;
+
+reg [7:0]  rx1_d_c;
+reg [1:0]  rx1_dv_i = 0;
+reg [2:0]  rx1_status = `eR_IDLE;
+reg [13:0] rx1_c_s = 0;
+reg [3:0]  rx1_nb_bytes = 0;
+reg [5:0]  rx1_nb_samples = 0;
+reg        rx1_loopback = 0;
+wire       rx1_nb_samples_c;
+wire       rx1_clk_sync_c_s;
+wire       rx1_clk_sync_cmd;
+wire       rx1_clk_sync_st;
+wire       rx1_clk_sync_set_cmd;
+assign rx1_nb_samples_c = ( 2 << ( rx1_c_s & 13'h3 )) == rx1_nb_samples;
+assign rx1_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx1_c_s[12:3];
+assign rx1_clk_sync_cmd = rx1_clk_sync_c_s && rx1_c_s[13];
+assign rx1_clk_sync_st = rx1_clk_sync_c_s && !rx1_c_s[13] && !rx1_c_s[2];
+assign rx1_clk_sync_set_cmd = rx1_clk_sync_c_s && rx1_c_s[13] && rx1_c_s[2];
+assign rx1s2_ch_dv = rx1s2_ch_dr && ( 3 == rx1s2_tx1_ch );
+assign rx1s2_ch_d = rx1_d_count;
+
 /*============================================================================*/
 task send_r0_clock_sync( input [12:0] cmd );
 /*============================================================================*/
@@ -632,26 +676,6 @@ endtask
 
 
 localparam NODE_POS_OFFSET = 8; // PREAMBLE_SFD for phy_pre_0/1
-
-reg [7:0]  rx0_d_c;
-reg [1:0]  rx0_dv_i = 0;
-reg [2:0]  rx0_status = `eR_IDLE;
-reg [13:0] rx0_c_s = 0;
-reg [3:0]  rx0_nb_bytes = 0;
-reg [5:0]  rx0_nb_samples = 0;
-reg        rx0_loopback = 0;
-wire       rx0_nb_samples_c;
-wire       rx0_clk_sync_c_s;
-wire       rx0_clk_sync_cmd;
-wire       rx0_clk_sync_st;
-wire       rx0_clk_sync_set_cmd;
-assign rx0_nb_samples_c = ( 2 << ( rx0_c_s & 13'h3 )) == rx0_nb_samples;
-assign rx0_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx0_c_s[12:3];
-assign rx0_clk_sync_cmd = rx0_clk_sync_c_s & rx0_c_s[13];
-assign rx0_clk_sync_st = rx0_clk_sync_c_s & !rx0_c_s[13] & !rx0_c_s[2];
-assign rx0_clk_sync_set_cmd = rx0_clk_sync_c_s & rx0_c_s[13] & rx0_c_s[2];
-assign rx0s0_ch_dv = rx0s0_ch_dr && ( 0 == rx0s0_tx0_ch );
-assign rx0s0_ch_d = rx0_d_count;
 
 /*============================================================================*/
 always @( posedge rx0m_clk ) begin : rx0_process
@@ -771,26 +795,6 @@ always @( posedge rx0m_clk ) begin : rx0_process
         rx0_d_count <= rx0_d_count + 1;
     end
 end
-
-reg [7:0]  rx1_d_c;
-reg [1:0]  rx1_dv_i = 0;
-reg [2:0]  rx1_status = `eR_IDLE;
-reg [13:0] rx1_c_s = 0;
-reg [3:0]  rx1_nb_bytes = 0;
-reg [5:0]  rx1_nb_samples = 0;
-reg        rx1_loopback = 0;
-wire       rx1_nb_samples_c;
-wire       rx1_clk_sync_c_s;
-wire       rx1_clk_sync_cmd;
-wire       rx1_clk_sync_st;
-wire       rx1_clk_sync_set_cmd;
-assign rx1_nb_samples_c = ( 2 << ( rx1_c_s & 13'h3 )) == rx1_nb_samples;
-assign rx1_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx1_c_s[12:3];
-assign rx1_clk_sync_cmd = rx1_clk_sync_c_s && rx1_c_s[13];
-assign rx1_clk_sync_st = rx1_clk_sync_c_s && !rx1_c_s[13] && !rx1_c_s[2];
-assign rx1_clk_sync_set_cmd = rx1_clk_sync_c_s && rx1_c_s[13] && rx1_c_s[2];
-assign rx1s2_ch_dv = rx1s2_ch_dr && ( 3 == rx1s2_tx1_ch );
-assign rx1s2_ch_d = rx1_d_count;
 
 /*============================================================================*/
 always @( posedge rx1m_clk ) begin : rx1_process
