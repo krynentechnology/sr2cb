@@ -195,7 +195,7 @@ begin
         tx0m_d_ii  <= tx0m_d_i;
         tx0m_dv_ii <= tx0m_dv_i;
     end
-end
+end // tx0m_clk
 
 reg [7:0] tx0s0_d_i = 0;
 reg       tx0s0_dv_i = 0;
@@ -209,7 +209,8 @@ begin
         tx0s0_d_i  <= tx0s0_d;
         tx0s0_dv_i <= tx0s0_dv;
     end
-end
+end // rx0m_clk
+
 assign rx0m_d  = tx0s0_d_i;
 assign rx0m_dv = tx0s0_dv_i;
 
@@ -225,7 +226,7 @@ begin
         tx1s0_d_i  <= tx1s0_d;
         tx1s0_dv_i <= tx1s0_dv;
     end
-end
+end // tx1s0_clk
 
 /*============================================================================*/
 sr2cb_s slv_node_1(
@@ -274,7 +275,7 @@ begin
         tx0s1_d_i  <= tx0s1_d;
         tx0s1_dv_i <= tx0s1_dv;
     end
-end
+end // tx0s1_clk
 
 reg [7:0] tx1s1_d_i = 0;
 reg       tx1s1_dv_i = 0;
@@ -288,7 +289,7 @@ begin
         tx1s1_d_i  <= tx1s1_d;
         tx1s1_dv_i <= tx1s1_dv;
     end
-end
+end // tx1s1_clk
 
 /*============================================================================*/
 sr2cb_s slv_node_2(
@@ -339,7 +340,7 @@ begin
         tx0s2_d_i  <= tx0s2_d;
         tx0s2_dv_i <= tx0s2_dv;
     end
-end
+end // tx0s2_clk
 
 /*============================================================================*/
 always @( posedge tx1m_clk ) // Two clock cycle interface RX signal delay
@@ -357,7 +358,7 @@ begin
         tx1m_d_ii  <= tx1m_d_i;
         tx1m_dv_ii <= tx1m_dv_i;
     end
-end
+end // tx1m_clk
 
 /*============================================================================*/
 sr2cb_m_phy_pre phy_pre_1(
@@ -373,6 +374,7 @@ sr2cb_m_phy_pre phy_pre_1(
 
 reg [7:0] tx1s2_d_i = 0;
 reg       tx1s2_dv_i = 0;
+
 /*============================================================================*/
 always @( posedge rx1m_clk ) // One clock cycle interface RX signal delay
 /*============================================================================*/
@@ -383,7 +385,8 @@ begin
         tx1s2_d_i  <= tx1s2_d;
         tx1s2_dv_i <= tx1s2_dv;
     end
-end
+end // rx1m_clk
+
 assign rx1m_d  = tx1s2_d_i;
 assign rx1m_dv = tx1s2_dv_i;
 
@@ -402,7 +405,7 @@ begin
     tx0m_d[7]   = set_parity ? ~( ^byte_in[6:0] ) : byte_in[7];
     tx0m_dv = 1;
 end
-endtask
+endtask // send_r0_byte
 
 /*============================================================================*/
 task send_r1_byte( input [7:0] byte_in, input set_parity );
@@ -413,7 +416,7 @@ begin
     tx1m_d[7]   = set_parity ? ~( ^byte_in[6:0] ) : byte_in[7];
     tx1m_dv = 1;
 end
-endtask
+endtask // send_r1_byte
 
 /*============================================================================*/
 task send_r0_command( input [12:0] cmd );
@@ -425,7 +428,7 @@ begin
     send_r0_byte( {1'b0, cmd[6:0]}, 1 );
     send_r0_byte( {1'b0, 1'b1, cmd[12:7]}, 1 ); // Set command bit
 end
-endtask
+endtask // send_r0_command
 
 /*============================================================================*/
 task send_r1_command( input [12:0] cmd );
@@ -437,7 +440,7 @@ begin
     send_r1_byte( {1'b0, cmd[6:0]}, 1 );
     send_r1_byte( {1'b0, 1'b1, cmd[12:7]}, 1 ); // Set command bit
 end
-endtask
+endtask // send_r1_command
 
 /*============================================================================*/
 task send_r0_status( input [12:0] status );
@@ -449,7 +452,7 @@ begin
     send_r0_byte( {1'b0, status[6:0]}, 1 );
     send_r0_byte( {1'b0, 1'b0, status[12:7]}, 1 ); // Reset status bit
 end
-endtask
+endtask // send_r0_status
 
 /*============================================================================*/
 task send_r1_status( input [12:0] status );
@@ -461,7 +464,7 @@ begin
     send_r1_byte( {1'b0, status[6:0]}, 1 );
     send_r1_byte( {1'b0, 1'b0, status[12:7]}, 1 ); // Reset status bit
 end
-endtask
+endtask // send_r1_status
 
 reg [27:0] delay_m[0:1]; // Delay measured by master node
 reg [10:0] delay_count = 0;
@@ -494,7 +497,7 @@ begin
         $finish;
     end
 end
-endtask
+endtask // send_r0_delay
 
 /*============================================================================*/
 task send_r1_delay;
@@ -518,7 +521,7 @@ begin
         $finish;
     end
 end
-endtask
+endtask // send_r1_delay
 
 reg [7:0]  rx0_d_c;
 reg [1:0]  rx0_dv_i = 0;
@@ -589,7 +592,7 @@ begin
     wait ( ~rx0m_dv ); // Wait for received message has ended!
     wait ( tx0m_clk ) @( negedge tx0m_clk );
 end
-endtask
+endtask // send_r0_clock_sync
 
 /*============================================================================*/
 task send_r1_clock_sync( input [12:0] cmd );
@@ -620,7 +623,7 @@ begin
     wait ( ~rx1m_dv ); // Wait for received message has ended!
     wait ( tx1m_clk ) @( negedge tx1m_clk );
 end
-endtask
+endtask // send_r1_clock_sync
 
 integer m = 0;
 /*============================================================================*/
@@ -646,7 +649,7 @@ begin
     tx0m_dv = 0;
     wait ( tx0m_clk ) @( negedge tx0m_clk );
 end
-endtask
+endtask // send_r0_packet
 
 integer n = 0;
 /*============================================================================*/
@@ -672,8 +675,7 @@ begin
     tx1m_dv = 0;
     wait ( tx1m_clk ) @( negedge tx1m_clk );
 end
-endtask
-
+endtask // send_r1_packet
 
 localparam NODE_POS_OFFSET = 8; // PREAMBLE_SFD for phy_pre_0/1
 
@@ -794,7 +796,7 @@ always @( posedge rx0m_clk ) begin : rx0_process
     if ( rx0s0_ch_dv ) begin
         rx0_d_count <= rx0_d_count + 1;
     end
-end
+end // rx0_process
 
 /*============================================================================*/
 always @( posedge rx1m_clk ) begin : rx1_process
@@ -913,7 +915,7 @@ always @( posedge rx1m_clk ) begin : rx1_process
     if ( rx1s2_ch_dv ) begin
         rx1_d_count <= rx1_d_count + 1;
     end
-end
+end // rx1_process
 
 reg [1:0]  rx0m_clk_i = 0;
 reg [1:0]  rx1m_clk_i = 0;
@@ -984,7 +986,7 @@ always @( posedge clk ) begin : handle_ports
     end
 
     master_clk_count <= master_clk_count + 1;
-end
+end // handle_ports
 
 always #5  clk = ~clk; // 100 MHz clock
 always #40 tx0m_clk = ~tx0m_clk; // 12.5 MHz clock
@@ -1119,7 +1121,7 @@ begin
         rx1s2_rt_clk_count[67:4], rx1s2_rt_clk_count[3:0] );
     $display( "" );
 end
-endtask
+endtask // ring_init
 
 /*============================================================================*/
 initial begin // Test bench
@@ -1154,4 +1156,4 @@ initial begin // Generate VCD file for GTKwave
 `endif
 end
 
-endmodule
+endmodule // sr2cb_s_tb

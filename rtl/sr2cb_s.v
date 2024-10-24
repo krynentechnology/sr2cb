@@ -24,8 +24,9 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+// Dependencies:
+// `include "../lib/randomizer.v"
 `include "sr2cb_def.v"
-`include "../lib/randomizer.v"
 
 /*============================================================================*/
 module sr2cb_s #(
@@ -222,7 +223,7 @@ initial begin : param_check // Parameter check
         $display( "NR_CHANNELS > (( 2 ** MAX_CLOG2_WIDTH ) - 1 )!" );
         $finish;
     end
-end
+end // param_check
 
 localparam [4:0] CLK_10NS  = 5'h10; // clk = 100MHz
 
@@ -432,7 +433,7 @@ always @(posedge rx0_clk) begin : rx0_process
         rx01_d_i         <= 0;
         rx0_dv_i         <= 0;
     end
-end
+end // rx0_process
 
 assign rx1_idle = ( `eR_IDLE == rx1_status );
 assign rx1_pre_init = (( `eR_PRE_INIT == rx1_status ) || ( `eR_PRE_INIT == rx1_status_i ));
@@ -627,7 +628,7 @@ always @(posedge rx1_clk) begin : rx1_process
         rx10_d_i         <= 0;
         rx1_dv_i         <= 0;
     end
-end
+end // rx1_process
 
 reg [1:0] rx0_clk_i = 0;
 reg [1:0] rx1_clk_i = 0;
@@ -657,29 +658,21 @@ always @(posedge clk) begin : handle_ports
     end
 
     if ( !rx0_status && !rx1_status ) begin // eR_IDLE status
-        if ( rx0_dv ^ rx1_dv ) begin
-            if ( rx0_dv && ( 2'b01 == rx0_clk_i )) begin
+        if ( rx0_dv ) begin
+            if ( 2'b01 == rx0_clk_i ) begin
                 clk00_en     <= 1; // Enable when clk low, next cycle!
                 clk01_en     <= 1;
                 dv00_en      <= 1;
                 dv01_en      <= 1;
                 rx0_status_i <= `eR_INIT;
             end
-            if ( rx1_dv && ( 2'b01 == rx1_clk_i )) begin
+        end else if ( rx1_dv ) begin   
+            if ( 2'b01 == rx1_clk_i ) begin
                 clk11_en     <= 1; // Enable when clk low, next cycle!
                 clk10_en     <= 1;
                 dv11_en      <= 1;
                 dv10_en      <= 1;
                 rx1_status_i <= `eR_INIT;
-            end
-        end
-        else begin // If both become active at the same time, select r0
-            if ( rx0_dv && ( 2'b01 == rx0_clk_i )) begin
-                clk00_en     <= 1; // Enable when clk low, next cycle!
-                clk01_en     <= 1;
-                dv00_en      <= 1;
-                dv01_en      <= 1;
-                rx0_status_i <= `eR_INIT;
             end
         end
         delay_count <= 0;
@@ -759,7 +752,7 @@ always @(posedge clk) begin : handle_ports
         delay_count_en <= 1; // Enable delay counting to detect broken ring
         if ( rx0_dv && rx1_dv ) begin
             delay_count_en <= 0; // Disable delay counting
-            delay_count    <= 0; // Reset delay counter
+            delay_count <= 0; // Reset delay counter
         end
     end
 
@@ -770,14 +763,14 @@ always @(posedge clk) begin : handle_ports
             end
             if (( 2'b01 == rx1_clk_i ) && rx1_dv ) begin
                 if ( delay_count_en && ( 0 == delay_rx01_count )) begin
-                    delay_nb_samples  <= delay_nb_samples + 1;
-                    delay_count_en    <= 0; // Disable delay counting
+                    delay_nb_samples <= delay_nb_samples + 1;
+                    delay_count_en <= 0; // Disable delay counting
                 end
             end
             if ( rx0_clk_sync_cmd && delay_count ) begin
                 if (( 1 << rx0_c_s[1:0] ) == delay_nb_samples ) begin
                     delay_rx01_count <= {delay_count, 4'h0} >> ( rx0_c_s[1:0] + 1 );
-                    delay_count      <= 0; // Reset delay counter
+                    delay_count <= 0; // Reset delay counter
                 end
             end
         end
@@ -790,14 +783,14 @@ always @(posedge clk) begin : handle_ports
             end
             if (( 2'b01 == rx0_clk_i ) && rx0_dv ) begin
                 if ( delay_count_en && ( 0 == delay_rx10_count )) begin
-                    delay_nb_samples  <= delay_nb_samples + 1;
-                    delay_count_en    <= 0; // Disable delay counting
+                    delay_nb_samples <= delay_nb_samples + 1;
+                    delay_count_en <= 0; // Disable delay counting
                 end
             end
             if ( rx1_clk_sync_cmd && delay_count ) begin
                 if (( 1 << rx1_c_s[1:0] ) == delay_nb_samples ) begin
                     delay_rx10_count <= {delay_count, 4'h0} >> ( rx1_c_s[1:0] + 1 );
-                    delay_count      <= 0; // Reset delay counter
+                    delay_count <= 0; // Reset delay counter
                 end
             end
         end
@@ -899,7 +892,7 @@ always @(posedge clk) begin : handle_ports
         delay_rx01_count <= 0;
         delay_rx10_count <= 0;
     end
-end
+end // handle_ports
 
 assign tx0_clk = ( rx0_clk & clk00_en ) | ( rx1_clk & clk10_en );
 assign tx1_clk = ( rx1_clk & clk11_en ) | ( rx0_clk & clk01_en );
@@ -910,4 +903,4 @@ assign tx1_dv  = ( rx1_dv_i & dv11_en ) | ( rx0_dv_i & dv01_en );
 assign tx0_err = rx0_error | rx0_err;
 assign tx1_err = rx1_error | rx1_err;
 
-endmodule
+endmodule // sr2cb_s
