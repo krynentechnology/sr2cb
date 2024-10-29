@@ -32,7 +32,7 @@
 module sr2cb_s #(
 /*============================================================================*/
     parameter NR_CHANNELS = 608,
-    parameter PREAMBLE_SFD = 1 )
+    parameter [0:0] PREAMBLE_SFD = 1 )
     (
     clk, rst_n,
     rx0_clk, rx0_d, rx0_dv, rx0_err, // _d = data, _dv = data valid
@@ -305,7 +305,7 @@ always @(posedge rx0_clk) begin : rx0_process
         if ((( NODE_POS_OFFSET + 2 ) == rx0_nb_bytes ) && rx0_parity_ok_c ) begin
             if ( rx0_init ) begin
                 rx0_d_c = { rx0_d[6:3], 1'b0, rx0_d[1:0] };
-                if ( rx0_clk_sync_cmd && !( delay_rx01_count && rx0_delay_set )) begin
+                if ( !( delay_rx01_count && rx0_delay_set )) begin
                     rx01_d_i[6:0] <= rx0_d_c; // Reset clk_sync_set bit
                     rx01_d_i[7]   <= ~( ^rx0_d_c ); // Set even partity
                 end
@@ -500,7 +500,7 @@ always @(posedge rx1_clk) begin : rx1_process
         if ((( NODE_POS_OFFSET + 2 ) == rx1_nb_bytes ) && rx1_parity_ok_c ) begin
             if ( rx1_init ) begin
                 rx1_d_c = { rx1_d[6:3], 1'b0, rx1_d[1:0] };
-                if ( rx1_clk_sync_cmd && !( delay_rx10_count && rx1_delay_set )) begin
+                if ( !( delay_rx10_count && rx1_delay_set )) begin
                     rx10_d_i[6:0] <= rx1_d_c; // Reset clk_sync_set bit
                     rx10_d_i[7]   <= ~( ^rx1_d_c ); // Set even partity
                 end
@@ -659,7 +659,7 @@ always @(posedge clk) begin : handle_ports
 
     if ( !rx0_status && !rx1_status ) begin // eR_IDLE status
         if ( rx0_dv ) begin
-            if ( 2'b01 == rx0_clk_i ) begin
+            if ( 2'b10 == rx0_clk_i ) begin
                 clk00_en     <= 1; // Enable when clk low, next cycle!
                 clk01_en     <= 1;
                 dv00_en      <= 1;
@@ -667,7 +667,7 @@ always @(posedge clk) begin : handle_ports
                 rx0_status_i <= `eR_INIT;
             end
         end else if ( rx1_dv ) begin   
-            if ( 2'b01 == rx1_clk_i ) begin
+            if ( 2'b10 == rx1_clk_i ) begin
                 clk11_en     <= 1; // Enable when clk low, next cycle!
                 clk10_en     <= 1;
                 dv11_en      <= 1;
@@ -679,11 +679,11 @@ always @(posedge clk) begin : handle_ports
     end
 
     if ( rx0_wait && !rx1_pre_init ) begin
-        if ( 2'b01 == rx0_clk_i ) begin
+        if ( 2'b10 == rx0_clk_i ) begin
             clk00_en <= 0; // Disable when clk low, next cycle!
             dv00_en  <= 0;
         end
-        if ( 2'b01 == rx1_clk_i ) begin
+        if ( 2'b10 == rx1_clk_i ) begin
             clk10_en <= 1; // Enable when clk low, next cycle!
         end
         if ( clk10_en && !( rx1_dv || rx1_dv_i )) begin
@@ -696,11 +696,11 @@ always @(posedge clk) begin : handle_ports
 
     if ( rx0_ready && rx1_pre_init ) begin
         if ( !( rx1_dv || rx1_dv_i )) begin
-            if ( !tx1_dv && ( 2'b01 == rx0_clk_i )) begin
+            if ( !tx1_dv && ( 2'b10 == rx0_clk_i )) begin
                 clk01_en <= 0; // Disable when clk low, next cycle!
                 dv01_en  <= 0;
             end
-            if ( !clk01_en && ( 2'b01 == rx1_clk_i )) begin
+            if ( !clk01_en && ( 2'b10 == rx1_clk_i )) begin
                 clk11_en         <= 1; // Enable when clk low, next cycle!
                 clk10_en         <= 1;
                 dv11_en          <= 1;
@@ -714,11 +714,11 @@ always @(posedge clk) begin : handle_ports
     end
 
     if ( rx1_wait && !rx0_pre_init ) begin
-        if ( 2'b01 == rx1_clk_i ) begin
+        if ( 2'b10 == rx1_clk_i ) begin
             clk11_en <= 0; // Disable when clk low, next cycle!
             dv11_en  <= 0;
         end
-        if ( 2'b01 == rx0_clk_i ) begin
+        if ( 2'b10 == rx0_clk_i ) begin
             clk01_en <= 1; // Enable when clk low, next cycle!
         end
         if ( clk01_en && !( rx0_dv || rx0_dv_i )) begin
@@ -731,11 +731,11 @@ always @(posedge clk) begin : handle_ports
 
     if ( rx1_ready && rx0_pre_init ) begin
         if ( !( rx0_dv || rx0_dv_i ) ) begin
-            if ( !tx0_dv && ( 2'b01 == rx1_clk_i )) begin
+            if ( !tx0_dv && ( 2'b10 == rx1_clk_i )) begin
                 clk10_en <= 0; // Disable when clk low, next cycle!
                 dv10_en  <= 0;
             end
-            if ( !clk10_en && ( 2'b01 == rx0_clk_i )) begin
+            if ( !clk10_en && ( 2'b10 == rx0_clk_i )) begin
                 clk00_en         <= 1; // Enable when clk low, next cycle!
                 clk01_en         <= 1;
                 dv00_en          <= 1;

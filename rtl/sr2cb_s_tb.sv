@@ -27,6 +27,9 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+// Dependencies:
+// `include "../sr2cb_m_phy_pre.v
+// `include "../sr2cb_s.v"
 `include "sr2cb_def.v"
 
 /*=============================================================================/
@@ -1138,8 +1141,8 @@ initial begin // Test bench
         node_pos[i]       = 0;
         node_pos_rp[i]    = 0;
     end
-    $display( "SR2CB slave simulation started" );
     #100    // 100ns
+    $display( "SR2CB slave simulation started" );
     rst_n = 1;
     #100    // 100ns
     ring_init;
