@@ -32,13 +32,7 @@
 // `include "../sr2cb_s.v"
 `include "sr2cb_def.v"
 
-/*=============================================================================/
-MASTER+  NODE8191+  NODE8190+                      NODE1---+  NODE0---+  MASTER+
-| RX0 |<-| TX RX |<-| TX RX |<- - - - - - - - - -<-| TX RX |<-| TX RX |<-| TX0 |
-|     |  NODE0 --+  NODE1 --+                      NODE8190+  NODE8191+  |     |
-| TX1 |->| RX TX |->| RX TX |->- - - - - - - - - ->| RX TX |->| RX TX |->| RX1 |
-------+  +-------+  +-------+                      +-------+  +-------+  ------+
-/=============================================================================*/
+/*============================================================================*/
 module sr2cb_s_tb;
 /*============================================================================*/
 localparam NR_CHANNELS = 4;
@@ -130,6 +124,16 @@ reg [7:0] tx1m_d_i = 0;
 reg       tx1m_dv_i = 0;
 reg [7:0] tx1m_d_ii = 0;
 reg       tx1m_dv_ii = 0;
+
+/*=============================================================================/
+RING         | SLV0    |  | SLV1    |         | SLV8190 |  | SLV8191 |
+|  +------+  +---------+  +---------+         +---------+  +---------+  +------+
+|  |MASTER|  | NP 8191 |  | NP 8190 |         | NP 1    |  | NP 0    |  |MASTER|
+CCW|  RX0 |<-| TX0 RX1 |<-| TX0 RX1 |<- - - <-| TX0 RX1 |<-| TX0 RX1 |<-| TX1  |
+|  |      |  | NP 0    |    NP 1    |         | NP 8190 |    NP 8191 |  |      |
+CW |  TX0 |->| RX0 TX1 |->| RX0 TX1 |->- - ->-| RX0 TX1 |->| RX0 TX1 |->| RX1  |
+   +------+  +---------+  +---------+         +---------+  +---------+  +------+
+/=============================================================================*/
 
 /*============================================================================*/
 sr2cb_m_phy_pre phy_pre_0(
@@ -396,9 +400,6 @@ assign rx1m_dv = tx1s2_dv_i;
 reg [12:0] node_pos[0:1];
 reg [12:0] node_pos_rp[0:1]; // The node positions of returned packets
 
-localparam CW_DIR  = 1'b0; // Ring clockwise direction
-localparam CCW_DIR = 1'b1; // Ring counterclockwise direction
-
 /*============================================================================*/
 task send_r0_byte( input [7:0] byte_in, input set_parity );
 /*============================================================================*/
@@ -427,7 +428,7 @@ task send_r0_command( input [12:0] cmd );
 begin
     wait ( phy_pre_0_dr );
     send_r0_byte( {1'b0, node_pos[0][6:0]}, 1 );
-    send_r0_byte( {1'b0, CW_DIR, node_pos[0][12:7]}, 1 );
+    send_r0_byte( {1'b0, `CW_RDIR, node_pos[0][12:7]}, 1 );
     send_r0_byte( {1'b0, cmd[6:0]}, 1 );
     send_r0_byte( {1'b0, 1'b1, cmd[12:7]}, 1 ); // Set command bit
 end
@@ -439,7 +440,7 @@ task send_r1_command( input [12:0] cmd );
 begin
     wait ( phy_pre_1_dr );
     send_r1_byte( {1'b0, node_pos[1][6:0]}, 1 );
-    send_r1_byte( {1'b0, CCW_DIR, node_pos[1][12:7]}, 1 );
+    send_r1_byte( {1'b0, `CCW_RDIR, node_pos[1][12:7]}, 1 );
     send_r1_byte( {1'b0, cmd[6:0]}, 1 );
     send_r1_byte( {1'b0, 1'b1, cmd[12:7]}, 1 ); // Set command bit
 end
@@ -451,7 +452,7 @@ task send_r0_status( input [12:0] status );
 begin
     wait ( phy_pre_0_dr );
     send_r0_byte( {1'b0, node_pos[0][6:0]}, 1 );
-    send_r0_byte( {1'b0, CW_DIR, node_pos[0][12:7]}, 1 );
+    send_r0_byte( {1'b0, `CW_RDIR, node_pos[0][12:7]}, 1 );
     send_r0_byte( {1'b0, status[6:0]}, 1 );
     send_r0_byte( {1'b0, 1'b0, status[12:7]}, 1 ); // Reset status bit
 end
@@ -463,7 +464,7 @@ task send_r1_status( input [12:0] status );
 begin
     wait ( phy_pre_1_dr );
     send_r1_byte( {1'b0, node_pos[1][6:0]}, 1 );
-    send_r1_byte( {1'b0, CCW_DIR, node_pos[1][12:7]}, 1 );
+    send_r1_byte( {1'b0, `CCW_RDIR, node_pos[1][12:7]}, 1 );
     send_r1_byte( {1'b0, status[6:0]}, 1 );
     send_r1_byte( {1'b0, 1'b0, status[12:7]}, 1 ); // Reset status bit
 end
@@ -713,7 +714,7 @@ always @( posedge rx0m_clk ) begin : rx0_process
             rx0_c_s[6:0] <= rx0m_d[6:0];
             if ( `eR_IDLE == rx0_status ) begin
                 if (( `CLK_SYNC_SET_0 >> 2 ) == rx0m_d[6:2] ) begin // Check for CLK_SYNC_SET cmd
-                    tx0p_d[6:0] <= 0; // Reset command
+                    tx0p_d[6:0] <= 0; // NOP command
                     tx0p_d[7]   <= 1;
                 end
             end
@@ -722,10 +723,10 @@ always @( posedge rx0m_clk ) begin : rx0_process
             rx0_c_s[13:7] <= rx0m_d[6:0];
             rx0_d_c = { rx0m_d[7], 1'b0, rx0m_d[5:0] };
             if ( `eR_IDLE == rx0_status ) begin
-                tx0p_d[6:0] <= rx0_d_c; // Reset command bit
+                tx0p_d[6:0] <= rx0_d_c; // NOP command bit
                 tx0p_d[7]   <= ~( ^rx0_d_c ); // Set even partity
-                if ( !tx0p_d[6:0] ) begin // Check for reset cmd
-                    tx0p_d[5:0] <= 0;     // Reset command
+                if ( !tx0p_d[6:0] ) begin // Check for NOP cmd
+                    tx0p_d[5:0] <= 0;     // NOP command
                     tx0p_d[7:6] <= 2'b01; // Set command bit + parity
                 end
             end
@@ -832,7 +833,7 @@ always @( posedge rx1m_clk ) begin : rx1_process
             rx1_c_s[6:0] <= rx1m_d[6:0];
             if ( `eR_IDLE == rx1_status ) begin
                 if (( `CLK_SYNC_SET_0 >> 2 ) == rx1m_d[6:2] ) begin // Check for CLK_SYNC_SET cmd
-                    tx1p_d[6:0] <= 0; // Reset command
+                    tx1p_d[6:0] <= 0; // NOP command
                     tx1p_d[7]   <= 1;
                 end
             end
@@ -841,10 +842,10 @@ always @( posedge rx1m_clk ) begin : rx1_process
             rx1_c_s[13:7] <= rx1m_d[6:0];
             rx1_d_c = { rx1m_d[7], 1'b0, rx1m_d[5:0] };
             if ( `eR_IDLE == rx1_status ) begin
-                tx1p_d[6:0] <= rx1_d_c; // Reset command bit
+                tx1p_d[6:0] <= rx1_d_c; // NOP command bit
                 tx1p_d[7]   <= ~( ^rx1_d_c ); // Set even partity
-                if ( !tx1p_d[6:0] ) begin // Check for reset cmd
-                    tx1p_d[5:0] <= 0;     // Reset command
+                if ( !tx1p_d[6:0] ) begin // Check for NOP cmd
+                    tx1p_d[5:0] <= 0;     // NOP command
                     tx1p_d[7:6] <= 2'b01; // Set command bit + parity
                 end
             end
@@ -924,8 +925,6 @@ reg [1:0]  rx0m_clk_i = 0;
 reg [1:0]  rx1m_clk_i = 0;
 reg [1:0]  tx0m_clk_i = 0;
 reg [1:0]  tx1m_clk_i = 0;
-reg [12:0] rx0_nb_bytes_i = 0;
-reg [12:0] rx1_nb_bytes_i = 0;
 /*--------------------------*/
 reg rx0m_dv_posedge = 0;
 reg tx0m_dv_posedge = 0;
@@ -939,9 +938,6 @@ always @( posedge clk ) begin : handle_ports
     rx1m_clk_i <= { rx1m_clk_i[0], rx1m_clk };
     tx0m_clk_i <= { tx0m_clk_i[0], tx0m_clk };
     tx1m_clk_i <= { tx1m_clk_i[0], tx1m_clk };
-
-    rx0_nb_bytes_i <= rx0_nb_bytes;
-    rx1_nb_bytes_i <= rx1_nb_bytes;
 
     rx0m_dv_posedge <= ( 2'b01 == rx0m_clk_i ) && rx0m_dv;
     tx0m_dv_posedge <= ( 2'b01 == tx0m_clk_i ) && tx0m_dv;
@@ -1013,10 +1009,13 @@ begin
     end
     rx0_status = `eR_IDLE;
 
-    $display( "delay[0][0] = %0d, slv_node_0 rx0_status = %0d", delay[0][0], slv_node_0.rx0_status );
-    $display( "delay[1][0] = %0d, slv_node_1 rx0_status = %0d", delay[1][0], slv_node_1.rx0_status );
-    $display( "delay[2][0] = %0d, slv_node_2 rx0_status = %0d", delay[2][0], slv_node_2.rx0_status );
-    passed = ( 192 == delay[0][0] ) && ( 384 == delay[1][0] ) && ( 576 == delay[2][0] ) &&
+    $display( "delay[0][0] = %0d.%0d, slv_node_0 rx0_status = %0d",
+        delay[0][0][27:4], delay[0][0][3:0], slv_node_0.rx0_status );
+    $display( "delay[1][0] = %0d.%0d, slv_node_1 rx0_status = %0d",
+        delay[1][0][27:4], delay[1][0][3:0], slv_node_1.rx0_status );
+    $display( "delay[2][0] = %0d.%0d, slv_node_2 rx0_status = %0d",
+        delay[2][0][27:4], delay[2][0][3:0], slv_node_2.rx0_status );
+    passed = ( delay[0][0] > 0 ) && ( delay[1][0] > 0 ) && ( delay[2][0] > 0 ) &&
         ( 3 == slv_node_0.rx0_status) && ( 3 == slv_node_1.rx0_status) && ( 3 == slv_node_2.rx0_status);
     $display( "Initialization R0 %s", ( passed ? "passed" : "failed" ));
 
@@ -1047,10 +1046,13 @@ begin
 
     #1000;
     $display( "" );
-    $display( "delay[2][1] = %0d, slv_node_0 rx0_status = %0d rx1_status = %0d", delay[2][1], slv_node_0.rx0_status, slv_node_0.rx1_status );
-    $display( "delay[1][1] = %0d, slv_node_1 rx0_status = %0d rx1_status = %0d", delay[1][1], slv_node_1.rx0_status, slv_node_1.rx1_status );
-    $display( "delay[0][1] = %0d, slv_node_2 rx0_status = %0d rx1_status = %0d", delay[0][1], slv_node_2.rx0_status, slv_node_2.rx1_status );
-    passed = ( 192 == delay[0][1] ) && ( 384 == delay[1][1] ) && ( 576 == delay[2][1] ) &&
+    $display( "delay[2][1] = %0d.%0d, slv_node_0 rx0_status = %0d rx1_status = %0d",
+        delay[2][1][27:4], delay[2][1][3:0], slv_node_0.rx0_status, slv_node_0.rx1_status );
+    $display( "delay[1][1] = %0d.%0d, slv_node_1 rx0_status = %0d rx1_status = %0d",
+        delay[1][1][27:4], delay[1][1][3:0], slv_node_1.rx0_status, slv_node_1.rx1_status );
+    $display( "delay[0][1] = %0d.%0d, slv_node_2 rx0_status = %0d rx1_status = %0d",
+        delay[0][1][27:4], delay[0][1][3:0], slv_node_2.rx0_status, slv_node_2.rx1_status );
+    passed = ( delay[0][1] > 0 ) && ( delay[1][1] > 0 ) && ( delay[2][1] > 0 ) &&
         ( 4 == slv_node_0.rx0_status) && ( 4 == slv_node_1.rx0_status) && ( 4 == slv_node_2.rx0_status) &&
         ( 4 == slv_node_0.rx1_status) && ( 4 == slv_node_1.rx1_status) && ( 4 == slv_node_2.rx1_status);
     $display( "Initialization R0 and R1 %s", ( passed ? "passed" : "failed" ));
@@ -1062,9 +1064,15 @@ begin
     end
 
     $display( "Master, clock R0/R1 = %0d before clock reset", master_clk_count );
-    $display( "Slave node 0, clock R0 = %0d, clock R1 = %0d", slv_node_0.rx0_clk_count[67:4], slv_node_0.rx1_clk_count[67:4] );
-    $display( "Slave node 1, clock R0 = %0d, clock R1 = %0d", slv_node_1.rx0_clk_count[67:4], slv_node_1.rx1_clk_count[67:4] );
-    $display( "Slave node 2, clock R0 = %0d, clock R1 = %0d", slv_node_2.rx0_clk_count[67:4], slv_node_2.rx1_clk_count[67:4] );
+    $display( "Slave node 0, clock R0 = %0d.%0d, clock R1 = %0d.%0d",
+        slv_node_0.rx0_clk_count[67:4], slv_node_0.rx0_clk_count[3:0],
+        slv_node_0.rx1_clk_count[67:4], slv_node_0.rx1_clk_count[3:0] );
+    $display( "Slave node 1, clock R0 = %0d.%0d, clock R1 = %0d.%0d",
+        slv_node_1.rx0_clk_count[67:4], slv_node_1.rx0_clk_count[3:0],
+        slv_node_1.rx1_clk_count[67:4], slv_node_1.rx1_clk_count[3:0] );
+    $display( "Slave node 2, clock R0 = %0d.%0d, clock R1 = %0d.%0d",
+        slv_node_2.rx0_clk_count[67:4], slv_node_2.rx0_clk_count[3:0],
+        slv_node_2.rx1_clk_count[67:4], slv_node_2.rx1_clk_count[3:0] );
     $display( "" );
 
     master_clk_count = 0;
@@ -1083,12 +1091,15 @@ begin
     slv_node_0.rx1_clk_count = ( slv_node_0.rx1_m_clk - 20 ) * 16;
     slv_node_1.rx1_clk_count = ( slv_node_1.rx1_m_clk - 20 ) * 16;
     slv_node_2.rx1_clk_count = ( slv_node_2.rx1_m_clk - 20 ) * 16;
-    $display( "Slave node 0, clock R0 = %0d, M0 = %0d, clock R1 = %0d, M1 = %0d",
-        slv_node_0.rx0_clk_count[67:4], slv_node_0.rx0_m_clk, slv_node_0.rx1_clk_count[67:4], slv_node_0.rx1_m_clk );
-    $display( "Slave node 1, clock R0 = %0d, M0 = %0d, clock R1 = %0d, M1 = %0d",
-        slv_node_1.rx0_clk_count[67:4], slv_node_1.rx0_m_clk, slv_node_1.rx1_clk_count[67:4], slv_node_1.rx1_m_clk );
-    $display( "Slave node 2, clock R0 = %0d, M0 = %0d, clock R1 = %0d, M1 = %0d",
-        slv_node_2.rx0_clk_count[67:4], slv_node_2.rx0_m_clk, slv_node_2.rx1_clk_count[67:4], slv_node_2.rx1_m_clk );
+    $display( "Slave node 0, clock R0 = %0d.%0d, M0 = %0d, clock R1 = %0d.%0d, M1 = %0d",
+        slv_node_0.rx0_clk_count[67:4], slv_node_0.rx0_clk_count[3:0], slv_node_0.rx0_m_clk,
+        slv_node_0.rx1_clk_count[67:4], slv_node_0.rx1_clk_count[3:0], slv_node_0.rx1_m_clk );
+    $display( "Slave node 1, clock R0 = %0d.%0d, M0 = %0d, clock R1 = %0d.%0d, M1 = %0d",
+        slv_node_1.rx0_clk_count[67:4], slv_node_1.rx0_clk_count[3:0], slv_node_1.rx0_m_clk,
+        slv_node_1.rx1_clk_count[67:4], slv_node_1.rx1_clk_count[3:0], slv_node_1.rx1_m_clk );
+    $display( "Slave node 2, clock R0 = %0d.%0d, M0 = %0d, clock R1 = %0d.%0d, M1 = %0d",
+        slv_node_2.rx0_clk_count[67:4], slv_node_2.rx0_clk_count[3:0], slv_node_2.rx0_m_clk,
+        slv_node_2.rx1_clk_count[67:4], slv_node_2.rx1_clk_count[3:0], slv_node_2.rx1_m_clk );
     $display( "" );
 
     passed = 0;

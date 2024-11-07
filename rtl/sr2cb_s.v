@@ -67,7 +67,7 @@ endfunction
 
 localparam NODE_POS_OFFSET = PREAMBLE_SFD * 8;
 localparam CHANNEL_OFFSET  = NODE_POS_OFFSET + 4;
-localparam CLK_SYNC_OFFSET = ( CHANNEL_OFFSET + 1 ) * 8 * 16;
+localparam CLK_SYNC_OFFSET = ( CHANNEL_OFFSET + 1 ) * 8 * 16; // *16 [3:0]
 localparam CHW = clog2( NR_CHANNELS ); // Channel width
 localparam NRBW = clog2( NR_CHANNELS + CHANNEL_OFFSET ); // RX bytes counter width
 
@@ -115,7 +115,6 @@ output wire [67:0] rx1_rt_clk_count; // Real-time R1 clock count
 // Registers and wires
 reg         clk00_en = 0;
 reg         clk01_en = 0;
-reg   [6:0] rx0_d_c;
 reg   [7:0] rx00_d_i = 0;
 reg   [7:0] rx01_d_i = 0;
 reg         dv00_en = 0;
@@ -126,7 +125,6 @@ reg         rx0_node_pos_carry = 0;
 wire        rx0_node_pos_inc;
 reg         rx0_parity_ok = 0;
 wire        rx0_parity_ok_c;
-reg         rx0_dir = 0; // CC or CCW
 reg  [NRBW-1:0] rx0_nb_bytes = 0;
 wire [27:0] rx0_delay_c;
 wire        rx0_idle;
@@ -135,7 +133,6 @@ wire        rx0_init;
 wire        rx0_wait;
 wire        rx0_ready;
 reg   [2:0] rx0_status_i = 0;
-reg   [2:0] rx0_status_rx1_i = 0;
 reg         rx0_error = 0;
 wire        rx0_cmd_nop;
 wire        rx0_clk_sync_c_s;
@@ -153,7 +150,6 @@ wire        rx0_m_clk_delta_n_ok;
 /*---------------------------*/
 reg         clk11_en = 0;
 reg         clk10_en = 0;
-reg   [6:0] rx1_d_c;
 reg   [7:0] rx11_d_i = 0;
 reg   [7:0] rx10_d_i = 0;
 reg         dv11_en = 0;
@@ -164,7 +160,6 @@ reg         rx1_node_pos_carry = 0;
 wire        rx1_node_pos_inc;
 reg         rx1_parity_ok = 0;
 wire        rx1_parity_ok_c;
-reg         rx1_dir = 1; // CC or CCW
 reg  [NRBW-1:0] rx1_nb_bytes = 0;
 wire [27:0] rx1_delay_c;
 wire        rx1_idle;
@@ -173,7 +168,6 @@ wire        rx1_init;
 wire        rx1_wait;
 wire        rx1_ready;
 reg   [2:0] rx1_status_i = 0;
-reg   [2:0] rx1_status_rx0_i = 0;
 reg         rx1_error = 0;
 wire        rx1_cmd_nop;
 wire        rx1_clk_sync_c_s;
@@ -230,21 +224,37 @@ localparam [4:0] CLK_10NS  = 5'h10; // clk = 100MHz
 /*============================================================================*/
 initial begin
 /*============================================================================*/
-    rx0_status       = `eR_IDLE;
-    rx0_status_i     = `eR_IDLE;
-    rx0_status_rx1_i = `eR_IDLE;
-    rx1_status       = `eR_IDLE;
-    rx1_status_i     = `eR_IDLE;
-    rx1_status_rx0_i = `eR_IDLE;
-    rx0_clk_adjust   = CLK_10NS;
-    rx1_clk_adjust   = CLK_10NS;
+    rx0_status = `eR_IDLE;
+    rx0_status_i = `eR_IDLE;
+    rx1_status = `eR_IDLE;
+    rx1_status_i = `eR_IDLE;
+    rx0_clk_adjust = CLK_10NS;
+    rx1_clk_adjust = CLK_10NS;
 end
 
+/*============================================================================*/
+function [7:0] set_parity( input [6:0] byte_6_0 ); // Even parity
+/*============================================================================*/
+    begin
+        set_parity = { ~( ^byte_6_0 ), byte_6_0 };
+    end
+endfunction
+
+/*=============================================================================/
+RING         | SLV0    |  | SLV1    |         | SLV8190 |  | SLV8191 |
+|  +------+  +---------+  +---------+         +---------+  +---------+  +------+
+|  |MASTER|  | NP 8191 |  | NP 8190 |         | NP 1    |  | NP 0    |  |MASTER|
+CCW|  RX0 |<-| TX0 RX1 |<-| TX0 RX1 |<- - - <-| TX0 RX1 |<-| TX0 RX1 |<-| TX1  |
+|  |      |  | NP 0    |    NP 1    |         | NP 8190 |    NP 8191 |  |      |
+CW |  TX0 |->| RX0 TX1 |->| RX0 TX1 |->- - ->-| RX0 TX1 |->| RX0 TX1 |->| RX1  |
+   +------+  +---------+  +---------+         +---------+  +---------+  +------+
+/=============================================================================*/
+
 assign rx0_idle = ( `eR_IDLE == rx0_status );
-assign rx0_pre_init = (( `eR_PRE_INIT == rx0_status ) || ( `eR_PRE_INIT == rx0_status_i ));
-assign rx0_init = (( `eR_INIT == rx0_status ) || ( `eR_INIT == rx0_status_i ));
+assign rx0_pre_init = ( `eR_PRE_INIT == rx0_status );
+assign rx0_init = ( `eR_INIT == rx0_status );
 assign rx0_wait = ( `eR_WAIT == rx0_status );
-assign rx0_ready = (( `eR_READY == rx0_status ) || ( `eR_READY == rx0_status_rx1_i ));
+assign rx0_ready = ( `eR_READY == rx0_status );
 assign rx0_cmd_nop = ( `CMD_NOP == rx0_c_s[12:0] ) && rx0_c_s[13];
 assign rx0_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx0_c_s[12:3];
 assign rx0_clk_sync_cmd = rx0_clk_sync_c_s && rx0_c_s[13];
@@ -272,7 +282,7 @@ always @(posedge rx0_clk) begin : rx0_process
     if ( `eR_INIT == rx0_status_i ) begin
         if ( rx0_status != `eR_INIT ) begin
             rx0_node_pos <= 0;
-            rx0_c_s      <= 0;
+            rx0_c_s <= 0;
         end
         rx0_status <= `eR_INIT;
     end
@@ -282,32 +292,28 @@ always @(posedge rx0_clk) begin : rx0_process
     end
 
     if ( rx0_dv ) begin
-        rx0_nb_bytes  <= rx0_nb_bytes + 1;
+        rx0_nb_bytes <= rx0_nb_bytes + 1;
         rx0_parity_ok <= rx0_parity_ok_c;
 
         if (( NODE_POS_OFFSET == rx0_nb_bytes ) && rx0_parity_ok_c ) begin
-            rx0_node_pos[6:0]  <= rx0_d[6:0];
+            rx0_node_pos[6:0] <= rx0_d[6:0];
             rx0_node_pos_carry <= rx0_node_pos_c[7];
             if ( rx0_node_pos_inc  ) begin
-                rx01_d_i[6:0] <= rx0_node_pos_c[6:0];
-                rx01_d_i[7]   <= ~( ^rx0_node_pos_c[6:0] ); // Set even parity
+                rx01_d_i <= set_parity( rx0_node_pos_c[6:0] );
             end
         end
 
         if ((( NODE_POS_OFFSET + 1 ) == rx0_nb_bytes ) && rx0_parity_ok_c && rx0_parity_ok ) begin
             rx0_node_pos[12:7] <= rx0_d[5:0];
             if ( rx0_node_pos_inc ) begin
-                rx01_d_i[5:0] <= rx0_node_pos_carry ? rx0_node_pos_c[5:0] : rx0_d[5:0];
-                rx01_d_i[7]   <= rx0_node_pos_carry ? ~( ^{ rx0_d[6], rx0_node_pos_c[5:0] } ) : rx0_d[7]; // Set even parity
+                rx01_d_i <= set_parity( {rx0_d[6], ( rx0_node_pos_carry ? rx0_node_pos_c[5:0] : rx0_d[5:0] )} );
             end
         end
 
         if ((( NODE_POS_OFFSET + 2 ) == rx0_nb_bytes ) && rx0_parity_ok_c ) begin
             if ( rx0_init ) begin
-                rx0_d_c = { rx0_d[6:3], 1'b0, rx0_d[1:0] };
-                if ( !( delay_rx01_count && rx0_delay_set )) begin
-                    rx01_d_i[6:0] <= rx0_d_c; // Reset clk_sync_set bit
-                    rx01_d_i[7]   <= ~( ^rx0_d_c ); // Set even partity
+                if ( !rx0_delay_set ) begin // Disable clk_sync_set_cmd!
+                    rx01_d_i <= set_parity( {rx0_d[6:3], 1'b0, rx0_d[1:0]} );
                 end
             end
         end
@@ -315,8 +321,7 @@ always @(posedge rx0_clk) begin : rx0_process
         if ((( NODE_POS_OFFSET + 3 ) == rx0_nb_bytes ) && rx0_parity_ok_c && rx0_parity_ok ) begin
             rx0_c_s <= {rx0_d[6:0], rx00_d_i[6:0]};
             if ( rx0_init ) begin
-                rx00_d_i[6] <= 0; // Reset command/status bit
-                rx00_d_i[7] <= ~( ^{ 1'b0, rx0_d[5:0] } ); // Set even parity
+                rx00_d_i <= set_parity( {1'b0, rx0_d[5:0]} ); // Reset command/status bit
             end
         end
 
@@ -326,8 +331,7 @@ always @(posedge rx0_clk) begin : rx0_process
                     rx0_delay[6:0] <= rx0_d[6:0];
                 end
                 if ( rx0_delay_set ) begin
-                    rx01_d_i[6:0] <= rx0_delay_c[6:0];
-                    rx01_d_i[7]   <= ~( ^rx0_delay_c[6:0] ); // Set even parity
+                    rx01_d_i <= set_parity( rx0_delay_c[6:0] );
                 end
             end
         end
@@ -340,8 +344,7 @@ always @(posedge rx0_clk) begin : rx0_process
                         rx0_delay[13:7] <= rx0_d[6:0];
                     end
                     if ( rx0_delay_set ) begin
-                        rx01_d_i[6:0] <= rx0_delay_c[13:7];
-                        rx01_d_i[7]   <= ~( ^rx0_delay_c[13:7] ); // Set even parity
+                        rx01_d_i <= set_parity( rx0_delay_c[13:7] );
                     end
                     rx0_parity_ok <= 1;
                 end
@@ -354,11 +357,9 @@ always @(posedge rx0_clk) begin : rx0_process
                 if ( rx0_parity_ok_c && rx0_parity_ok ) begin
                     if ( rx0_init ) begin
                         rx0_delay[20:14] <= rx0_d[6:0];
-                        rx0_delay_set    <= 1;
                     end
                     if ( rx0_delay_set ) begin
-                        rx01_d_i[6:0] <= rx0_delay_c[20:14];
-                        rx01_d_i[7]   <= ~( ^rx0_delay_c[20:14] ); // Set even parity
+                        rx01_d_i <= set_parity( rx0_delay_c[20:14] );
                     end
                     rx0_parity_ok <= 1;
                 end
@@ -371,11 +372,12 @@ always @(posedge rx0_clk) begin : rx0_process
                 if ( rx0_parity_ok_c && rx0_parity_ok ) begin
                     if ( rx0_init ) begin
                         rx0_delay[27:21] <= rx0_d[6:0];
-                        rx0_delay_set    <= 1;
+                        // Start sending clk_sync_set_cmd to next node when
+                        // R0 node delay TX1->RX1 has been determined!
+                        rx0_delay_set <= |delay_rx01_count;
                     end
                     if ( rx0_delay_set ) begin
-                        rx01_d_i[6:0] <= rx0_delay_c[27:21];
-                        rx01_d_i[7]   <= ~( ^rx0_delay_c[27:21] ); // Set even parity
+                        rx01_d_i <= set_parity( rx0_delay_c[27:21] );
                     end
                     rx0_parity_ok <= 1;
                 end
@@ -391,26 +393,18 @@ always @(posedge rx0_clk) begin : rx0_process
     end
     else begin
         rx0_nb_bytes <= 0;
-        rx00_d_i     <= 0;
+        rx00_d_i <= 0;
 
         if ( `eR_PRE_INIT == rx0_status_i ) begin
           rx0_status <= `eR_PRE_INIT;
         end
 
-        if ( rx0_clk_sync_cmd && delay_rx01_count && rx0_delay_set ) begin
-            if ( rx0_init ) begin
-                rx0_status <= `eR_WAIT; // CLK_SYNC_SET command
-            end
+        if ( rx0_init && rx0_delay_set ) begin
+            rx0_status <= `eR_WAIT; // CLK_SYNC_SET command received!
         end
 
-        if (( rx1_wait && rx0_cmd_nop ) || rx1_ready ) begin
-            rx1_status_rx0_i <= `eR_READY;
-        end
-
-        if ( `eR_WAIT == rx0_status ) begin
-            if ( `eR_READY == rx0_status_rx1_i ) begin
-                rx0_status <= `eR_READY;
-            end
+        if ( rx0_wait && rx1_cmd_nop ) begin
+            rx0_status <= `eR_READY;
         end
     end
 
@@ -424,22 +418,22 @@ always @(posedge rx0_clk) begin : rx0_process
     end
 
     if ( !rst_n ) begin
-        rx0_status       <= `eR_IDLE;
-        rx0_status_i     <= `eR_IDLE;
-        rx0_status_rx1_i <= `eR_IDLE;
-        rx0_clk_adjust   <= CLK_10NS;
-        rx0_nb_bytes     <= 0;
-        rx00_d_i         <= 0;
-        rx01_d_i         <= 0;
-        rx0_dv_i         <= 0;
+        rx0_status <= `eR_IDLE;
+        rx0_status_i <= `eR_IDLE;
+        rx0_clk_adjust <= CLK_10NS;
+        rx0_nb_bytes <= 0;
+        rx00_d_i <= 0;
+        rx01_d_i <= 0;
+        rx0_dv_i <= 0;
+        rx0_delay_set <= 0; 
     end
 end // rx0_process
 
 assign rx1_idle = ( `eR_IDLE == rx1_status );
-assign rx1_pre_init = (( `eR_PRE_INIT == rx1_status ) || ( `eR_PRE_INIT == rx1_status_i ));
-assign rx1_init = (( `eR_INIT == rx1_status ) || ( `eR_INIT == rx1_status_i ));
+assign rx1_pre_init = ( `eR_PRE_INIT == rx1_status );
+assign rx1_init = ( `eR_INIT == rx1_status );
 assign rx1_wait = ( `eR_WAIT == rx1_status );
-assign rx1_ready = (( `eR_READY == rx1_status ) || ( `eR_READY == rx1_status_rx0_i ));
+assign rx1_ready = ( `eR_READY == rx1_status );
 assign rx1_cmd_nop = ( `CMD_NOP == rx1_c_s[12:0] ) && rx1_c_s[13];
 assign rx1_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx1_c_s[12:3];
 assign rx1_clk_sync_cmd = rx1_clk_sync_c_s && rx1_c_s[13];
@@ -467,7 +461,7 @@ always @(posedge rx1_clk) begin : rx1_process
     if ( `eR_INIT == rx1_status_i ) begin
         if ( rx1_status != `eR_INIT ) begin
             rx1_node_pos <= 0;
-            rx1_c_s      <= 0;
+            rx1_c_s <= 0;
         end
         rx1_status <= `eR_INIT;
     end
@@ -477,32 +471,28 @@ always @(posedge rx1_clk) begin : rx1_process
     end
 
     if ( rx1_dv ) begin
-        rx1_nb_bytes  <= rx1_nb_bytes + 1;
+        rx1_nb_bytes <= rx1_nb_bytes + 1;
         rx1_parity_ok <= rx1_parity_ok_c;
 
         if (( NODE_POS_OFFSET == rx1_nb_bytes ) && rx1_parity_ok_c ) begin
-            rx1_node_pos[6:0]  <= rx1_d[6:0];
+            rx1_node_pos[6:0] <= rx1_d[6:0];
             rx1_node_pos_carry <= rx1_node_pos_c[7];
             if ( rx1_node_pos_inc ) begin
-                rx10_d_i[6:0] <= rx1_node_pos_c[6:0];
-                rx10_d_i[7]   <= ~( ^rx1_node_pos_c[6:0] ); // Set even parity
+                rx10_d_i <= set_parity( rx1_node_pos_c[6:0] );
             end
         end
 
         if ((( NODE_POS_OFFSET + 1 ) == rx1_nb_bytes ) && rx1_parity_ok_c && rx1_parity_ok ) begin
             rx1_node_pos[12:7] <= rx1_d[5:0];
             if ( rx1_node_pos_inc ) begin
-                rx10_d_i[5:0] <= rx1_node_pos_carry ? rx1_node_pos_c[5:0] : rx1_d[5:0];
-                rx10_d_i[7]   <= rx1_node_pos_carry ? ~( ^{ rx1_d[6], rx1_node_pos_c[5:0] } ) : rx1_d[7]; // Set even parity
+                rx10_d_i <= set_parity( {rx1_d[6], ( rx1_node_pos_carry ? rx1_node_pos_c[5:0] : rx1_d[5:0] )} );
             end
         end
 
         if ((( NODE_POS_OFFSET + 2 ) == rx1_nb_bytes ) && rx1_parity_ok_c ) begin
             if ( rx1_init ) begin
-                rx1_d_c = { rx1_d[6:3], 1'b0, rx1_d[1:0] };
-                if ( !( delay_rx10_count && rx1_delay_set )) begin
-                    rx10_d_i[6:0] <= rx1_d_c; // Reset clk_sync_set bit
-                    rx10_d_i[7]   <= ~( ^rx1_d_c ); // Set even partity
+                if ( !rx1_delay_set ) begin // Disable clk_sync_set_cmd!
+                    rx10_d_i <= set_parity( {rx1_d[6:3], 1'b0, rx1_d[1:0]} ); // Set even partity
                 end
             end
         end
@@ -510,8 +500,7 @@ always @(posedge rx1_clk) begin : rx1_process
         if ((( NODE_POS_OFFSET + 3 ) == rx1_nb_bytes ) && rx1_parity_ok_c && rx1_parity_ok ) begin
             rx1_c_s <= {rx1_d[6:0], rx11_d_i[6:0]};
             if ( rx1_init ) begin
-                rx11_d_i[6] <= 0; // Reset command/status bit
-                rx11_d_i[7] <= ~( ^{ 1'b0, rx1_d[5:0] } ); // Set even parity
+                rx11_d_i <= set_parity( {1'b0, rx1_d[5:0]} ); // Reset command/status bit
             end
         end
 
@@ -521,8 +510,7 @@ always @(posedge rx1_clk) begin : rx1_process
                     rx1_delay[6:0] <= rx1_d[6:0];
                 end
                 if ( rx1_delay_set ) begin
-                    rx10_d_i[6:0] <= rx1_delay_c[6:0];
-                    rx10_d_i[7]   <= ~( ^rx1_delay_c[6:0] ); // Set even parity
+                    rx10_d_i <= set_parity( rx1_delay_c[6:0] );
                 end
             end
         end
@@ -535,8 +523,7 @@ always @(posedge rx1_clk) begin : rx1_process
                         rx1_delay[13:7] <= rx1_d[6:0];
                     end
                     if ( rx1_delay_set ) begin
-                        rx10_d_i[6:0] <= rx1_delay_c[13:7];
-                        rx10_d_i[7]   <= ~( ^rx1_delay_c[13:7] ); // Set even parity
+                        rx10_d_i <= set_parity( rx1_delay_c[13:7] );
                     end
                     rx1_parity_ok <= 1;
                 end
@@ -549,11 +536,9 @@ always @(posedge rx1_clk) begin : rx1_process
                 if ( rx1_parity_ok_c && rx1_parity_ok ) begin
                     if ( rx1_init ) begin
                         rx1_delay[20:14] <= rx1_d[6:0];
-                        rx1_delay_set    <= 1;
                     end
                     if ( rx1_delay_set ) begin
-                        rx10_d_i[6:0] <= rx1_delay_c[20:14];
-                        rx10_d_i[7]   <= ~( ^rx1_delay_c[20:14] ); // Set even parity
+                        rx10_d_i <= set_parity( rx1_delay_c[20:14] );
                     end
                     rx1_parity_ok <= 1;
                 end
@@ -566,11 +551,12 @@ always @(posedge rx1_clk) begin : rx1_process
                 if ( rx1_parity_ok_c && rx1_parity_ok ) begin
                     if ( rx1_init ) begin
                         rx1_delay[27:21] <= rx1_d[6:0];
-                        rx1_delay_set    <= 1;
+                        // Start sending clk_sync_set_cmd to next node when
+                        // R1 node delay TX1->RX1 has been determined!
+                        rx1_delay_set <= |delay_rx10_count;
                     end
                     if ( rx1_delay_set ) begin
-                        rx10_d_i[6:0] <= rx1_delay_c[27:21];
-                        rx10_d_i[7]   <= ~( ^rx1_delay_c[27:21] ); // Set even parity
+                        rx10_d_i <= set_parity( rx1_delay_c[27:21] );
                     end
                     rx1_parity_ok <= 1;
                 end
@@ -586,26 +572,18 @@ always @(posedge rx1_clk) begin : rx1_process
     end
     else begin
         rx1_nb_bytes <= 0;
-        rx11_d_i     <= 0;
+        rx11_d_i <= 0;
 
         if ( `eR_PRE_INIT == rx1_status_i ) begin
           rx1_status <= `eR_PRE_INIT;
         end
 
-        if ( rx1_clk_sync_cmd && delay_rx10_count && rx1_delay_set ) begin
-            if ( rx1_init ) begin
-                rx1_status <= `eR_WAIT; // CLK_SYNC_SET command
-            end
+        if ( rx1_init && rx1_delay_set ) begin
+            rx1_status <= `eR_WAIT; // CLK_SYNC_SET command received!
         end
 
-        if (( rx0_wait && rx1_cmd_nop ) || rx0_ready ) begin
-            rx0_status_rx1_i <= `eR_READY;
-        end
-
-        if ( `eR_WAIT == rx1_status ) begin
-            if ( `eR_READY == rx1_status_rx0_i ) begin
-                rx1_status <= `eR_READY;
-            end
+        if ( rx1_wait && rx0_cmd_nop ) begin
+            rx1_status <= `eR_READY;
         end
     end
 
@@ -619,22 +597,36 @@ always @(posedge rx1_clk) begin : rx1_process
     end
 
     if ( !rst_n ) begin
-        rx1_status       <= `eR_IDLE;
-        rx1_status_i     <= `eR_IDLE;
-        rx1_status_rx0_i <= `eR_IDLE;
-        rx1_clk_adjust   <= CLK_10NS;
-        rx1_nb_bytes     <= 0;
-        rx11_d_i         <= 0;
-        rx10_d_i         <= 0;
-        rx1_dv_i         <= 0;
+        rx1_status <= `eR_IDLE;
+        rx1_status_i <= `eR_IDLE;
+        rx1_clk_adjust <= CLK_10NS;
+        rx1_nb_bytes <= 0;
+        rx11_d_i <= 0;
+        rx10_d_i <= 0;
+        rx1_dv_i <= 0;
+        rx1_delay_set <= 0;
     end
 end // rx1_process
+
+// TX->RX->FPGA->TX->RX. To determine the propagation delay, the TX->RX delays
+// should be divided by two, but the internal FPGA RX->TX copy clock cycle
+// should not. Therefore the clocked delay calculation has an offset.
+localparam CLK_DELAY_OFFSET = 8;
 
 reg [1:0] rx0_clk_i = 0;
 reg [1:0] rx1_clk_i = 0;
 reg [1:0] tx0_clk_i = 0;
 reg [1:0] tx1_clk_i = 0;
 reg random_i = 0;
+wire delay_rx01_count_zero;
+wire delay_rx10_count_zero;
+wire [9:0] clk_delay_rx0_offset;
+wire [9:0] clk_delay_rx1_offset;
+
+assign delay_rx01_count_zero = ( 0 == delay_rx01_count );
+assign delay_rx10_count_zero = ( 0 == delay_rx10_count );
+assign clk_delay_rx0_offset = ( CLK_DELAY_OFFSET << rx0_c_s[1:0] );
+assign clk_delay_rx1_offset = ( CLK_DELAY_OFFSET << rx1_c_s[1:0] );
 
 /*============================================================================*/
 always @(posedge clk) begin : handle_ports
@@ -657,31 +649,34 @@ always @(posedge clk) begin : handle_ports
         delay_count <= delay_count + 1;
     end
 
-    if ( !rx0_status && !rx1_status ) begin // eR_IDLE status
+    if ( rx0_idle && rx1_idle ) begin // eR_IDLE status
         if ( rx0_dv ) begin
             if ( 2'b10 == rx0_clk_i ) begin
-                clk00_en     <= 1; // Enable when clk low, next cycle!
-                clk01_en     <= 1;
-                dv00_en      <= 1;
-                dv01_en      <= 1;
+                clk00_en <= 1; // Enable when clk low, next cycle!
+                clk01_en <= 1;
+                dv00_en <= 1;
+                dv01_en <= 1;
                 rx0_status_i <= `eR_INIT;
+                delay_count <= 0;
             end
-        end else if ( rx1_dv ) begin   
+        end else if ( rx1_dv ) begin
             if ( 2'b10 == rx1_clk_i ) begin
-                clk11_en     <= 1; // Enable when clk low, next cycle!
-                clk10_en     <= 1;
-                dv11_en      <= 1;
-                dv10_en      <= 1;
+                clk11_en <= 1; // Enable when clk low, next cycle!
+                clk10_en <= 1;
+                dv11_en <= 1;
+                dv10_en <= 1;
                 rx1_status_i <= `eR_INIT;
+                delay_count <= 0;
             end
         end
-        delay_count <= 0;
+        delay_rx01_count <= 0;
+        delay_rx10_count <= 0;
     end
 
     if ( rx0_wait && !rx1_pre_init ) begin
         if ( 2'b10 == rx0_clk_i ) begin
             clk00_en <= 0; // Disable when clk low, next cycle!
-            dv00_en  <= 0;
+            dv00_en <= 0;
         end
         if ( 2'b10 == rx1_clk_i ) begin
             clk10_en <= 1; // Enable when clk low, next cycle!
@@ -698,17 +693,17 @@ always @(posedge clk) begin : handle_ports
         if ( !( rx1_dv || rx1_dv_i )) begin
             if ( !tx1_dv && ( 2'b10 == rx0_clk_i )) begin
                 clk01_en <= 0; // Disable when clk low, next cycle!
-                dv01_en  <= 0;
+                dv01_en <= 0;
             end
             if ( !clk01_en && ( 2'b10 == rx1_clk_i )) begin
-                clk11_en         <= 1; // Enable when clk low, next cycle!
-                clk10_en         <= 1;
-                dv11_en          <= 1;
-                dv10_en          <= 1;
-                rx1_status_i     <= `eR_INIT;
+                clk11_en <= 1; // Enable when clk low, next cycle!
+                clk10_en <= 1;
+                dv11_en <= 1;
+                dv10_en <= 1;
+                rx1_status_i <= `eR_INIT;
                 delay_nb_samples <= 0;
-                delay_count_en   <= 0; // Disable delay counting
-                delay_count      <= 0;
+                delay_count_en <= 0; // Disable delay counting
+                delay_count <= 0;
             end
         end
     end
@@ -716,7 +711,7 @@ always @(posedge clk) begin : handle_ports
     if ( rx1_wait && !rx0_pre_init ) begin
         if ( 2'b10 == rx1_clk_i ) begin
             clk11_en <= 0; // Disable when clk low, next cycle!
-            dv11_en  <= 0;
+            dv11_en <= 0;
         end
         if ( 2'b10 == rx0_clk_i ) begin
             clk01_en <= 1; // Enable when clk low, next cycle!
@@ -733,17 +728,17 @@ always @(posedge clk) begin : handle_ports
         if ( !( rx0_dv || rx0_dv_i ) ) begin
             if ( !tx0_dv && ( 2'b10 == rx1_clk_i )) begin
                 clk10_en <= 0; // Disable when clk low, next cycle!
-                dv10_en  <= 0;
+                dv10_en <= 0;
             end
             if ( !clk10_en && ( 2'b10 == rx0_clk_i )) begin
-                clk00_en         <= 1; // Enable when clk low, next cycle!
-                clk01_en         <= 1;
-                dv00_en          <= 1;
-                dv01_en          <= 1;
-                rx0_status_i     <= `eR_INIT;
+                clk00_en <= 1; // Enable when clk low, next cycle!
+                clk01_en <= 1;
+                dv00_en <= 1;
+                dv01_en <= 1;
+                rx0_status_i <= `eR_INIT;
                 delay_nb_samples <= 0;
-                delay_count_en   <= 0; // Disable delay counting
-                delay_count      <= 0;
+                delay_count_en <= 0; // Disable delay counting
+                delay_count <= 0;
             end
         end
     end
@@ -756,43 +751,43 @@ always @(posedge clk) begin : handle_ports
         end
     end
 
-    if ( rx1_idle || rx1_wait || rx1_ready ) begin // Start counting when delay has not been set yet
-        if ( rx0_init ) begin
-            if (( 2'b01 == tx1_clk_i ) && tx1_dv && !rx1_dv ) begin
-                delay_count_en <= ( 0 == delay_rx01_count );
+    if ( rx0_init && rx0_clk_sync_cmd && delay_rx01_count_zero ) begin
+        if (( 2'b01 == tx1_clk_i ) && tx1_dv && !rx1_dv ) begin
+            delay_count_en <= 1; // Start counting when delay has not been set yet
+        end
+        if (( 2'b01 == rx1_clk_i ) && rx1_dv ) begin
+            if ( delay_count_en ) begin
+                delay_nb_samples <= delay_nb_samples + 1;
+                delay_count_en <= 0; // Disable delay counting
             end
-            if (( 2'b01 == rx1_clk_i ) && rx1_dv ) begin
-                if ( delay_count_en && ( 0 == delay_rx01_count )) begin
-                    delay_nb_samples <= delay_nb_samples + 1;
-                    delay_count_en <= 0; // Disable delay counting
-                end
+        end
+        if ( delay_count ) begin
+            if (( 1 << rx0_c_s[1:0] ) == delay_nb_samples ) begin
+                delay_rx01_count <= {delay_count, 4'h0} >> ( rx0_c_s[1:0] + 1 );
+                delay_count <= 0; // Reset delay counter
             end
-            if ( rx0_clk_sync_cmd && delay_count ) begin
-                if (( 1 << rx0_c_s[1:0] ) == delay_nb_samples ) begin
-                    delay_rx01_count <= {delay_count, 4'h0} >> ( rx0_c_s[1:0] + 1 );
-                    delay_count <= 0; // Reset delay counter
-                end
-            end
+        end else begin
+            delay_count <= clk_delay_rx0_offset;
         end
     end
 
-    if ( rx0_idle || rx0_wait || rx0_ready ) begin // Start counting when delay has not been set yet
-        if ( rx1_init ) begin
-            if (( 2'b01 == tx0_clk_i ) && tx0_dv && !rx0_dv ) begin
-                delay_count_en <= ( 0 == delay_rx10_count );
+    if ( rx1_init && rx1_clk_sync_cmd && delay_rx10_count_zero ) begin
+        if (( 2'b01 == tx0_clk_i ) && tx0_dv && !rx0_dv ) begin
+            delay_count_en <= 1; // Start counting when delay has not been set yet
+        end
+        if (( 2'b01 == rx0_clk_i ) && rx0_dv ) begin
+            if ( delay_count_en ) begin
+                delay_nb_samples <= delay_nb_samples + 1;
+                delay_count_en <= 0; // Disable delay counting
             end
-            if (( 2'b01 == rx0_clk_i ) && rx0_dv ) begin
-                if ( delay_count_en && ( 0 == delay_rx10_count )) begin
-                    delay_nb_samples <= delay_nb_samples + 1;
-                    delay_count_en <= 0; // Disable delay counting
-                end
+        end
+        if ( delay_count ) begin
+            if (( 1 << rx1_c_s[1:0] ) == delay_nb_samples ) begin
+                delay_rx10_count <= {delay_count, 4'h0} >> ( rx1_c_s[1:0] + 1 );
+                delay_count <= 0; // Reset delay counter
             end
-            if ( rx1_clk_sync_cmd && delay_count ) begin
-                if (( 1 << rx1_c_s[1:0] ) == delay_nb_samples ) begin
-                    delay_rx10_count <= {delay_count, 4'h0} >> ( rx1_c_s[1:0] + 1 );
-                    delay_count <= 0; // Reset delay counter
-                end
-            end
+        end else begin
+            delay_count <= clk_delay_rx1_offset;
         end
     end
 
@@ -801,9 +796,9 @@ always @(posedge clk) begin : handle_ports
     end
 
     rx0_m_clk <= rx0_m_clk + 1;
-    if ( rx0_ready && rx1_ready && (( NODE_POS_OFFSET + 4 ) == rx0_nb_bytes ) && ( 2'b01 == rx0_clk_i )) begin
+    if ( rx0_ready && rx1_ready && ( CHANNEL_OFFSET  == rx0_nb_bytes ) && ( 2'b01 == rx0_clk_i )) begin
         // Check for master clock count status at CLK_SYNC_OFFSET
-        if ( 0 == rx0_c_s[13:10] ) begin
+        if ( 0 == rx0_c_s[13:10] ) begin // Master clock status!
             if ( rx0_m_clk_delta_p_ok || rx0_m_clk_delta_n_ok ) begin // Ignore wrap arounds!
                 rx0_m_clk <= {rx0_m_clk[19:10], rx0_c_s[9:0]};
             end
@@ -833,13 +828,13 @@ always @(posedge clk) begin : handle_ports
     rx0_clk_count <= rx0_clk_count + ( random_i ? rx0_clk_adjust : CLK_10NS );
     if ( rx0_clk_reset_cmd && ( 2'b01 == rx0_clk_i )) begin
         rx0_clk_count <= 0;
-        rx0_m_clk     <= 0;
+        rx0_m_clk <= 0;
     end
 
     rx1_m_clk <= rx1_m_clk + 1;
-    if ( rx0_ready && rx1_ready && (( NODE_POS_OFFSET + 4 ) == rx1_nb_bytes ) && ( 2'b01 == rx1_clk_i )) begin
+    if ( rx0_ready && rx1_ready && ( CHANNEL_OFFSET == rx1_nb_bytes ) && ( 2'b01 == rx1_clk_i )) begin
         // Check for master clock count status at CLK_SYNC_OFFSET
-        if ( 0 == rx1_c_s[13:10] ) begin
+        if ( 0 == rx1_c_s[13:10] ) begin // Master clock status!
             if ( rx1_m_clk_delta_p_ok || rx1_m_clk_delta_n_ok ) begin // Ignore wrap arounds!
                 rx1_m_clk <= {rx1_m_clk[19:10], rx1_c_s[9:0]};
             end
@@ -869,7 +864,7 @@ always @(posedge clk) begin : handle_ports
     rx1_clk_count <= rx1_clk_count + ( random_i ? rx1_clk_adjust : CLK_10NS );
     if ( rx1_clk_reset_cmd && ( 2'b01 == rx1_clk_i )) begin
         rx1_clk_count <= 0;
-        rx1_m_clk     <= 0;
+        rx1_m_clk <= 0;
     end
 
     if ( !rst_n ) begin
@@ -877,18 +872,28 @@ always @(posedge clk) begin : handle_ports
         rx1_clk_i <= 0;
         tx0_clk_i <= 0;
         tx1_clk_i <= 0;
-        random_i  <= 0;
+        random_i <= 0;
+        rx0_status_i <= `eR_IDLE;
+        rx1_status_i <= `eR_IDLE;
+        clk00_en <= 0;
+        clk01_en <= 0;
+        dv00_en <= 0;
+        dv01_en <= 0;
+        clk11_en <= 0;
+        clk10_en <= 0;
+        dv11_en <= 0;
+        dv10_en <= 0;
         /*-----------------------*/
         rx0_clk_adjust <= CLK_10NS;
         rx1_clk_adjust <= CLK_10NS;
-        rx0_clk_count  <= 0;
-        rx1_clk_count  <= 0;
-        rx0_m_clk      <= 0;
-        rx1_m_clk      <= 0;
+        rx0_clk_count <= 0;
+        rx1_clk_count <= 0;
+        rx0_m_clk <= 0;
+        rx1_m_clk <= 0;
         /*------------------*/
         delay_nb_samples <= 0;
-        delay_count_en   <= 0; // Disable delay countingmples ) begin
-        delay_count      <= 0;
+        delay_count_en <= 0; // Disable delay countingmples ) begin
+        delay_count <= 0;
         delay_rx01_count <= 0;
         delay_rx10_count <= 0;
     end
@@ -896,10 +901,10 @@ end // handle_ports
 
 assign tx0_clk = ( rx0_clk & clk00_en ) | ( rx1_clk & clk10_en );
 assign tx1_clk = ( rx1_clk & clk11_en ) | ( rx0_clk & clk01_en );
-assign tx0_d   = ( rx00_d_i & { 8{ clk00_en }} ) | ( rx10_d_i & { 8{ clk10_en }} );
-assign tx0_dv  = ( rx0_dv_i & dv00_en ) | ( rx1_dv_i & dv10_en );
-assign tx1_d   = ( rx11_d_i & { 8{ clk11_en }} ) | ( rx01_d_i & { 8{ clk01_en }} );
-assign tx1_dv  = ( rx1_dv_i & dv11_en ) | ( rx0_dv_i & dv01_en );
+assign tx0_d = ( rx00_d_i & { 8{ clk00_en }} ) | ( rx10_d_i & { 8{ clk10_en }} );
+assign tx0_dv = ( rx0_dv_i & dv00_en ) | ( rx1_dv_i & dv10_en );
+assign tx1_d = ( rx11_d_i & { 8{ clk11_en }} ) | ( rx01_d_i & { 8{ clk01_en }} );
+assign tx1_dv = ( rx1_dv_i & dv11_en ) | ( rx0_dv_i & dv01_en );
 assign tx0_err = rx0_error | rx0_err;
 assign tx1_err = rx1_error | rx1_err;
 

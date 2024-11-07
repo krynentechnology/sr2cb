@@ -42,18 +42,20 @@ localparam PREAMBLE_SFD = { 56'h55555555555555, 8'hD5 };
 localparam IPG_BYTES    = 5;
 localparam FIFO_SIZE    = 8;
 
-reg       rx_dr_c;
 reg [7:0] fifo [0:FIFO_SIZE-1];
 reg [3:0] fifo_count;
 reg [2:0] ipg_count;
-reg       ipg_done;
+
+wire fifo_empty;
+assign fifo_empty = ( 0 == fifo_count );
+wire ipg_done;
+assign ipg_done = ( 0 == ipg_count );
 
 /*============================================================================*/
 initial begin
 /*============================================================================*/
     fifo_count = 0;
-    ipg_count  = IPG_BYTES;
-    ipg_done   = 0;
+    ipg_count  = 0;
     { fifo[ 7 ],
       fifo[ 6 ],
       fifo[ 5 ],
@@ -67,10 +69,7 @@ end
 /*============================================================================*/
 always @(posedge clk) begin : phy_tx_fifo_process
 /*============================================================================*/
-    rx_dr_c     = 1;
     fifo_count <= 0;
-    ipg_count  <= IPG_BYTES;
-    ipg_done   <= 1;
     { fifo[ 7 ],
       fifo[ 6 ],
       fifo[ 5 ],
@@ -81,35 +80,27 @@ always @(posedge clk) begin : phy_tx_fifo_process
       fifo[ 0 ] } <= PREAMBLE_SFD;
 
     if ( rst_n ) begin
-        if (( rx_dv && rx_dr_c ) || fifo_count ) begin
-            if ( fifo_count ) begin
+        if (( rx_dv && rx_dr ) || !fifo_empty ) begin
+            if ( !fifo_empty ) begin
                 fifo_count <= fifo_count - 1;
             end
 
-            rx_dr_c = 0;
-            if ( rx_dv ) begin
-                fifo_count <= FIFO_SIZE;
-                rx_dr_c     = 1;
-            end
-            ipg_done <= 0;
- 
             { fifo[ 7 ], fifo[ 6 ], fifo[ 5 ], fifo[ 4 ], fifo[ 3 ], fifo[ 2 ], fifo[ 1 ], fifo[ 0 ] } <=
                 { fifo[ 6 ], fifo[ 5 ], fifo[ 4 ], fifo[ 3 ], fifo[ 2 ], fifo[ 1 ], fifo[ 0 ], rx_d };
-        end
-        else begin
-            rx_dr_c   = 1;
-            ipg_done <= 1;
-            if ( ipg_count && !ipg_done ) begin
-                ipg_count <= ipg_count - 1;
-                rx_dr_c    = 0;
-                ipg_done  <= 0;
+
+            ipg_count <= IPG_BYTES - 1; // Minus 1 to set rx_dr high for rx_dv
+            if ( rx_dv ) begin
+                fifo_count <= FIFO_SIZE;
             end
+        end
+        else if ( !ipg_done ) begin
+            ipg_count <= ipg_count - 1;
         end
     end
 end
 
-assign rx_dr = rx_dr_c;
+assign rx_dr = ( fifo_empty & ipg_done ) | ( rx_dv & ~ipg_done );
 assign tx_d  = fifo[ 7 ];
-assign tx_dv = rx_dv || fifo_count;
+assign tx_dv = rx_dv | ~fifo_empty;
 
 endmodule

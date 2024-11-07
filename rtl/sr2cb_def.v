@@ -34,9 +34,11 @@
 `define RING_RESET     13'hFFFF // Ring reset to eR_IDLE
 // ---- SR2CB protocol status symbol definitions ----
 `define MASTER_CLK_10L 13'h0000 // Lowest 10 bits (0-9) of master clock value
-`define MASTER_CLK_10N 13'h0800 // Next 10 bits (10-20) of master clock value
-                                // Bits 11-13 status type, 0,1 == MASTER_CLK
-`define TIMER_TICK_1MS 13'h1000 
+`define MASTER_CLK_10N 13'h0400 // Next 10 bits (10-20) of master clock value
+                                // Bits [12:10] status type, 0,1 == MASTER_CLK
+`define TIMER_TICK_1MS 13'h1000
+`define CW_RDIR        1'b0     // Clockwise ring direction 
+`define CCW_RDIR       1'b1     // Counterclockwise ring direction 
 // ---- Node ring status enum ----
 `define eR_IDLE     3'b000
 `define eR_PRE_INIT 3'b001
