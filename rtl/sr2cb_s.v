@@ -132,7 +132,7 @@ wire        rx0_pre_init;
 wire        rx0_init;
 wire        rx0_wait;
 wire        rx0_ready;
-reg   [2:0] rx0_status_i = 0;
+reg   [2:0] rx0_status_i = `eR_IDLE;
 reg         rx0_error = 0;
 wire        rx0_cmd_nop;
 wire        rx0_clk_sync_c_s;
@@ -140,13 +140,6 @@ wire        rx0_clk_sync_cmd;
 wire        rx0_clk_sync_set_cmd;
 wire        rx0_clk_reset_cmd;
 reg         rx0_delay_set = 0;
-reg  [67:0] rx0_clk_count = 0;
-reg   [4:0] rx0_clk_adjust = 0;
-/*---------------------------*/
-reg  [19:0] rx0_m_clk = 0; // Master clock copy
-wire signed [20:0] rx0_m_clk_delta;
-wire        rx0_m_clk_delta_p_ok;
-wire        rx0_m_clk_delta_n_ok;
 /*---------------------------*/
 reg         clk11_en = 0;
 reg         clk10_en = 0;
@@ -167,7 +160,7 @@ wire        rx1_pre_init;
 wire        rx1_init;
 wire        rx1_wait;
 wire        rx1_ready;
-reg   [2:0] rx1_status_i = 0;
+reg   [2:0] rx1_status_i = `eR_IDLE;
 reg         rx1_error = 0;
 wire        rx1_cmd_nop;
 wire        rx1_clk_sync_c_s;
@@ -175,17 +168,8 @@ wire        rx1_clk_sync_cmd;
 wire        rx1_clk_sync_set_cmd;
 wire        rx1_clk_reset_cmd;
 reg         rx1_delay_set = 0;
-reg  [67:0] rx1_clk_count = 0;
-reg   [4:0] rx1_clk_adjust = 0;
-/*---------------------------*/
-reg  [19:0] rx1_m_clk = 0; // Master clock copy
-wire signed [20:0] rx1_m_clk_delta;
-wire        rx1_m_clk_delta_p_ok;
-wire        rx1_m_clk_delta_n_ok;
 /*---------------------------*/
 reg [10:0] delay_count = 0;
-reg        delay_count_en = 0;
-reg [4:0]  delay_nb_samples = 0;
 reg [14:0] delay_rx01_count = 0;
 reg [14:0] delay_rx10_count = 0;
 /*---------------------------*/
@@ -222,17 +206,6 @@ end // param_check
 localparam [4:0] CLK_10NS  = 5'h10; // clk = 100MHz
 
 /*============================================================================*/
-initial begin
-/*============================================================================*/
-    rx0_status = `eR_IDLE;
-    rx0_status_i = `eR_IDLE;
-    rx1_status = `eR_IDLE;
-    rx1_status_i = `eR_IDLE;
-    rx0_clk_adjust = CLK_10NS;
-    rx1_clk_adjust = CLK_10NS;
-end
-
-/*============================================================================*/
 function [7:0] set_parity( input [6:0] byte_6_0 ); // Even parity
 /*============================================================================*/
     begin
@@ -264,10 +237,6 @@ assign rx0_node_pos_inc = !( rx1_init || rx1_wait );
 assign rx0_delay_c = rx0_delay + { {9{1'b0}}, delay_rx01_count };
 assign rx0_node_pos_c = {1'b0, rx0_d[6:0]} + 1;
 assign rx0_parity_ok_c = ( rx0_d[7] == ~( ^rx0_d[6:0] ));
-assign rx0_m_clk_delta = $signed( {1'b0, rx0_m_clk} ) - $signed( {1'b0, rx0_clk_count[23:4]} );
-assign rx0_m_clk_delta_p_ok = !( |rx0_m_clk_delta[20:9] );
-assign rx0_m_clk_delta_n_ok = &rx0_m_clk_delta[20:9];
-assign rx0_rt_clk_count = rx0_clk_count + rx0_delay + CLK_SYNC_OFFSET;
 assign rx0_ch_dr = !( rx0_nb_bytes < CHANNEL_OFFSET ) && rx0_ready && rx1_ready;
 assign rx0_tx0_ch = rx0_ch_dr ? ( rx0_nb_bytes - CHANNEL_OFFSET ) : 0;
 
@@ -419,13 +388,11 @@ always @(posedge rx0_clk) begin : rx0_process
 
     if ( !rst_n ) begin
         rx0_status <= `eR_IDLE;
-        rx0_status_i <= `eR_IDLE;
-        rx0_clk_adjust <= CLK_10NS;
         rx0_nb_bytes <= 0;
         rx00_d_i <= 0;
         rx01_d_i <= 0;
         rx0_dv_i <= 0;
-        rx0_delay_set <= 0; 
+        rx0_delay_set <= 0;
     end
 end // rx0_process
 
@@ -443,10 +410,6 @@ assign rx1_node_pos_inc = !( rx0_init || rx0_wait );
 assign rx1_delay_c = rx1_delay + { {9{1'b0}}, delay_rx10_count };
 assign rx1_node_pos_c = {1'b0, rx1_d[6:0]} + 1;
 assign rx1_parity_ok_c = ( rx1_d[7] == ~( ^rx1_d[6:0] ));
-assign rx1_m_clk_delta = $signed( {1'b0, rx1_m_clk} ) - $signed( {1'b0, rx1_clk_count[23:4]} );
-assign rx1_m_clk_delta_p_ok = !( |rx1_m_clk_delta[20:9] );
-assign rx1_m_clk_delta_n_ok = &rx1_m_clk_delta[20:9];
-assign rx1_rt_clk_count = rx1_clk_count + rx1_delay + CLK_SYNC_OFFSET;
 assign rx1_ch_dr = !( rx1_nb_bytes < CHANNEL_OFFSET ) && rx0_ready && rx1_ready;
 assign rx1_tx1_ch = rx1_ch_dr ? ( rx1_nb_bytes - CHANNEL_OFFSET ) : 0;
 
@@ -598,8 +561,6 @@ always @(posedge rx1_clk) begin : rx1_process
 
     if ( !rst_n ) begin
         rx1_status <= `eR_IDLE;
-        rx1_status_i <= `eR_IDLE;
-        rx1_clk_adjust <= CLK_10NS;
         rx1_nb_bytes <= 0;
         rx11_d_i <= 0;
         rx10_d_i <= 0;
@@ -618,15 +579,41 @@ reg [1:0] rx1_clk_i = 0;
 reg [1:0] tx0_clk_i = 0;
 reg [1:0] tx1_clk_i = 0;
 reg random_i = 0;
+reg delay_count_en = 0;
+reg [4:0]  delay_nb_samples = 0;
 wire delay_rx01_count_zero;
 wire delay_rx10_count_zero;
 wire [9:0] clk_delay_rx0_offset;
 wire [9:0] clk_delay_rx1_offset;
+reg [67:0] rx0_clk_count = 0;
+reg [63:0] rx0_mclk_count = 0;
+wire signed [27:0] rx0_mclk_delta;
+wire rx0_mclk_delta_p_ok;
+wire rx0_mclk_delta_n_ok;
+reg  [4:0] rx0_clk_adjust = CLK_10NS;
+reg [67:0] rx1_clk_count = 0;
+reg [63:0] rx1_mclk_count = 0;
+reg  [4:0] rx1_clk_adjust = CLK_10NS;
+wire signed [27:0] rx1_mclk_delta;
+wire rx1_mclk_delta_p_ok;
+wire rx1_mclk_delta_n_ok;
 
 assign delay_rx01_count_zero = ( 0 == delay_rx01_count );
 assign delay_rx10_count_zero = ( 0 == delay_rx10_count );
 assign clk_delay_rx0_offset = ( CLK_DELAY_OFFSET << rx0_c_s[1:0] );
 assign clk_delay_rx1_offset = ( CLK_DELAY_OFFSET << rx1_c_s[1:0] );
+
+assign rx0_mclk_delta = ( 0 == rx0_c_s[13:10] ) ? ( $signed( {1'b0, {rx0_mclk_count[26:10],
+    rx0_c_s[9:0]}} ) - $signed( {1'b0, rx0_clk_count[30:4]} )) : 0;
+assign rx0_mclk_delta_p_ok = !( |rx0_mclk_delta[27:9] );
+assign rx0_mclk_delta_n_ok = &rx0_mclk_delta[27:9];
+assign rx0_rt_clk_count = rx0_clk_count + rx0_delay + CLK_SYNC_OFFSET;
+
+assign rx1_mclk_delta = ( 0 == rx1_c_s[13:10] ) ? ( $signed( {1'b0, {rx1_mclk_count[26:10],
+    rx1_c_s[9:0]}} ) - $signed( {1'b0, rx1_clk_count[30:4]} )) : 0;
+assign rx1_mclk_delta_p_ok = !( |rx1_mclk_delta[27:9] );
+assign rx1_mclk_delta_n_ok = &rx1_mclk_delta[27:9];
+assign rx1_rt_clk_count = rx1_clk_count + rx1_delay + CLK_SYNC_OFFSET;
 
 /*============================================================================*/
 always @(posedge clk) begin : handle_ports
@@ -636,7 +623,7 @@ always @(posedge clk) begin : handle_ports
     tx0_clk_i <= { tx0_clk_i[0], tx0_clk };
     tx1_clk_i <= { tx1_clk_i[0], tx1_clk };
     // Semi random trigger for clock adjustment
-    random_i  <= (( rx0_m_clk[7:0] == random_out ) || ( rx1_m_clk[7:0] == random_out ));
+    random_i  <= (( rx0_clk_count[11:4] == random_out ) || ( rx1_clk_count[11:4] == random_out ));
 
     if ( rx0_status_i == rx0_status ) begin
         rx0_status_i <= `eR_IDLE;
@@ -795,32 +782,28 @@ always @(posedge clk) begin : handle_ports
         delay_count_en <= 0; // Disable delay counting
     end
 
-    rx0_m_clk <= rx0_m_clk + 1;
+    rx0_mclk_count <= rx0_mclk_count + 1;
     if ( rx0_ready && rx1_ready && ( CHANNEL_OFFSET  == rx0_nb_bytes ) && ( 2'b01 == rx0_clk_i )) begin
-        // Check for master clock count status at CLK_SYNC_OFFSET
-        if ( 0 == rx0_c_s[13:10] ) begin // Master clock status!
-            if ( rx0_m_clk_delta_p_ok || rx0_m_clk_delta_n_ok ) begin // Ignore wrap arounds!
-                rx0_m_clk <= {rx0_m_clk[19:10], rx0_c_s[9:0]};
-            end
+        // Check for master clock count status at CLK_SYNC_OFFSET, ignore delta wraparounds
+        if (( 0 == rx0_c_s[13:10] ) && ( rx0_mclk_delta_p_ok || rx0_mclk_delta_n_ok )) begin
+            rx0_mclk_count[9:0] <= rx0_c_s[9:0];
         end
     end
 
     if ( rx0_ready ) begin
-        if ( rx0_m_clk_delta_p_ok ) begin
+        if ( rx0_mclk_delta_p_ok ) begin
             rx0_clk_adjust <= CLK_10NS + 1;
-            if( |rx0_m_clk_delta[8:3] ) begin // Fast adjust!
+            if ( |rx0_mclk_delta[9:3] ) begin // Fast adjust!
                 rx0_clk_adjust <= CLK_10NS + 7;
-                random_i <= 1;
             end
         end
-        if ( rx0_m_clk_delta_n_ok ) begin
+        if ( rx0_mclk_delta_n_ok ) begin
             rx0_clk_adjust <= CLK_10NS - 1;
-            if( !( &rx0_m_clk_delta[8:3] )) begin // Fast adjust!
+            if ( !( &rx0_mclk_delta[9:3] )) begin // Fast adjust!
                 rx0_clk_adjust <= CLK_10NS - 7;
-                random_i <= 1;
             end
         end
-        if ( 0 == rx0_m_clk_delta ) begin
+        if ( 0 == rx0_mclk_delta ) begin
             rx0_clk_adjust <= CLK_10NS;
         end
     end
@@ -828,35 +811,31 @@ always @(posedge clk) begin : handle_ports
     rx0_clk_count <= rx0_clk_count + ( random_i ? rx0_clk_adjust : CLK_10NS );
     if ( rx0_clk_reset_cmd && ( 2'b01 == rx0_clk_i )) begin
         rx0_clk_count <= 0;
-        rx0_m_clk <= 0;
+        rx0_mclk_count <= 0;
     end
 
-    rx1_m_clk <= rx1_m_clk + 1;
+    rx1_mclk_count <= rx1_mclk_count + 1;
     if ( rx0_ready && rx1_ready && ( CHANNEL_OFFSET == rx1_nb_bytes ) && ( 2'b01 == rx1_clk_i )) begin
-        // Check for master clock count status at CLK_SYNC_OFFSET
-        if ( 0 == rx1_c_s[13:10] ) begin // Master clock status!
-            if ( rx1_m_clk_delta_p_ok || rx1_m_clk_delta_n_ok ) begin // Ignore wrap arounds!
-                rx1_m_clk <= {rx1_m_clk[19:10], rx1_c_s[9:0]};
-            end
+        // Check for master clock count status at CLK_SYNC_OFFSET, ignore delta wrap arounds!
+        if (( 0 == rx1_c_s[13:10] ) && ( rx1_mclk_delta_p_ok || rx1_mclk_delta_n_ok )) begin
+            rx1_mclk_count[9:0] <= rx1_c_s[9:0];
         end
     end
 
     if ( rx1_ready ) begin
-        if ( rx1_m_clk_delta_p_ok ) begin
+        if ( rx1_mclk_delta_p_ok ) begin
             rx1_clk_adjust <= CLK_10NS + 1;
-            if( |rx1_m_clk_delta[8:3] ) begin // Fast adjust!
+            if( |rx1_mclk_delta[9:3] ) begin // Fast adjust!
                 rx1_clk_adjust <= CLK_10NS + 7;
-                random_i <= 1;
             end
         end
-        if ( rx1_m_clk_delta_n_ok ) begin
+        if ( rx1_mclk_delta_n_ok ) begin
             rx1_clk_adjust <= CLK_10NS - 1;
-            if( !( &rx1_m_clk_delta[8:3] )) begin // Fast adjust!
+            if( !( &rx1_mclk_delta[9:3] )) begin // Fast adjust!
                 rx1_clk_adjust <= CLK_10NS - 7;
-                random_i <= 1;
             end
         end
-        if ( 0 == rx1_m_clk_delta ) begin
+        if ( 0 == rx1_mclk_delta ) begin
             rx1_clk_adjust <= CLK_10NS;
         end
     end
@@ -864,7 +843,7 @@ always @(posedge clk) begin : handle_ports
     rx1_clk_count <= rx1_clk_count + ( random_i ? rx1_clk_adjust : CLK_10NS );
     if ( rx1_clk_reset_cmd && ( 2'b01 == rx1_clk_i )) begin
         rx1_clk_count <= 0;
-        rx1_m_clk <= 0;
+        rx1_mclk_count <= 0;
     end
 
     if ( !rst_n ) begin
@@ -884,12 +863,12 @@ always @(posedge clk) begin : handle_ports
         dv11_en <= 0;
         dv10_en <= 0;
         /*-----------------------*/
-        rx0_clk_adjust <= CLK_10NS;
-        rx1_clk_adjust <= CLK_10NS;
         rx0_clk_count <= 0;
+        rx0_mclk_count <= 0;
+        rx0_clk_adjust <= CLK_10NS;
         rx1_clk_count <= 0;
-        rx0_m_clk <= 0;
-        rx1_m_clk <= 0;
+        rx1_mclk_count <= 0;
+        rx1_clk_adjust <= CLK_10NS;
         /*------------------*/
         delay_nb_samples <= 0;
         delay_count_en <= 0; // Disable delay countingmples ) begin
