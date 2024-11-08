@@ -17,11 +17,14 @@ if not exist .\bin mkdir bin
 cd .\bin
 if "%1"=="" (
   iverilog -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
+  iverilog -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
 )  
 if not "%1"=="" (
   iverilog -DGTK_WAVE -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
-)  
-if exist sr2cb_s_tb.out vvp sr2cb_s_tb.out
+  iverilog -DGTK_WAVE -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
+)
+if exist sr2cb_s_tb.out vvp sr2cb_s_tb.out  
+if exist sr2cb_tb.out vvp sr2cb_tb.out
 cd ..
 :END
 
