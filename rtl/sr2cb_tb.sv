@@ -409,6 +409,13 @@ begin
         rx0s_rt_clk_count[i][3:0], rx1s_rt_clk_count[i][67:4], rx1s_rt_clk_count[i][3:0] );
     end
     $display( "" );
+    if ( rdir ) begin
+        wait(( `MASTER_CLK_10L >> 10 ) == rx0m_c_s[13:10] );
+    end else begin
+        wait(( `MASTER_CLK_10L >> 10 ) == rx1m_c_s[13:10] );
+    end
+    tx0m_c_s = 13'hFFF; // Set unkown command to stop sending master clock status!
+    tx1m_c_s = 13'hFFF;
     passed = 0;
     for ( j = 0; (( j < 100 ) && !passed ); j = j + 1 ) begin
         wait ( phy_pre_0_dr ) @( negedge phy_pre_0_dr );

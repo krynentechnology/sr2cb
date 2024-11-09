@@ -139,6 +139,7 @@ wire        rx0_clk_sync_c_s;
 wire        rx0_clk_sync_cmd;
 wire        rx0_clk_sync_set_cmd;
 wire        rx0_clk_reset_cmd;
+wire        rx0_mclk_status;
 reg         rx0_delay_set = 0;
 /*---------------------------*/
 reg         clk11_en = 0;
@@ -167,6 +168,7 @@ wire        rx1_clk_sync_c_s;
 wire        rx1_clk_sync_cmd;
 wire        rx1_clk_sync_set_cmd;
 wire        rx1_clk_reset_cmd;
+wire        rx1_mclk_status;
 reg         rx1_delay_set = 0;
 /*---------------------------*/
 reg [10:0] delay_count = 0;
@@ -233,6 +235,7 @@ assign rx0_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx0_c_s[12:3];
 assign rx0_clk_sync_cmd = rx0_clk_sync_c_s && rx0_c_s[13];
 assign rx0_clk_sync_set_cmd = rx0_clk_sync_c_s && rx0_c_s[13] && rx0_c_s[2];
 assign rx0_clk_reset_cmd = ( `CLK_RESET == rx0_c_s[12:0] ) && rx0_c_s[13];
+assign rx0_mclk_status = (( `MASTER_CLK_10L >> 10 ) == rx0_c_s[13:10] );
 assign rx0_node_pos_inc = !( rx1_init || rx1_wait );
 assign rx0_delay_c = rx0_delay + { {9{1'b0}}, delay_rx01_count };
 assign rx0_node_pos_c = {1'b0, rx0_d[6:0]} + 1;
@@ -257,7 +260,7 @@ always @(posedge rx0_clk) begin : rx0_process
     end
 
     if (  rx0_clk_reset_cmd ) begin
-        rx0_c_s[12:0] <= `CMD_NOP;
+        rx0_c_s <= {1'b1, `CMD_NOP};
     end
 
     if ( rx0_dv ) begin
@@ -302,6 +305,9 @@ always @(posedge rx0_clk) begin : rx0_process
                 if ( rx0_delay_set ) begin
                     rx01_d_i <= set_parity( rx0_delay_c[6:0] );
                 end
+            end
+            if ( rx0_mclk_status ) begin
+                rx0_c_s <= {1'b0, `CMD_NOP};
             end
         end
 
@@ -406,6 +412,7 @@ assign rx1_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == rx1_c_s[12:3];
 assign rx1_clk_sync_cmd = rx1_clk_sync_c_s && rx1_c_s[13];
 assign rx1_clk_sync_set_cmd = rx1_clk_sync_c_s && rx1_c_s[13] && rx1_c_s[2];
 assign rx1_clk_reset_cmd = ( `CLK_RESET == rx1_c_s[12:0] ) && rx1_c_s[13];
+assign rx1_mclk_status = (( `MASTER_CLK_10L >> 10 ) == rx1_c_s[13:10] );
 assign rx1_node_pos_inc = !( rx0_init || rx0_wait );
 assign rx1_delay_c = rx1_delay + { {9{1'b0}}, delay_rx10_count };
 assign rx1_node_pos_c = {1'b0, rx1_d[6:0]} + 1;
@@ -430,7 +437,7 @@ always @(posedge rx1_clk) begin : rx1_process
     end
 
     if (  rx1_clk_reset_cmd ) begin
-        rx1_c_s[12:0] <= `CMD_NOP;
+        rx1_c_s <= {1'b1, `CMD_NOP};
     end
 
     if ( rx1_dv ) begin
@@ -475,6 +482,9 @@ always @(posedge rx1_clk) begin : rx1_process
                 if ( rx1_delay_set ) begin
                     rx10_d_i <= set_parity( rx1_delay_c[6:0] );
                 end
+            end
+            if ( rx1_mclk_status ) begin
+                rx1_c_s <= {1'b0, `CMD_NOP};
             end
         end
 
@@ -573,6 +583,7 @@ end // rx1_process
 // should be divided by two, but the internal FPGA RX->TX copy clock cycle
 // should not. Therefore the clocked delay calculation has an offset.
 localparam CLK_DELAY_OFFSET = 8;
+localparam MCLK_DELTA_OK_LSB = 9;
 
 reg [1:0] rx0_clk_i = 0;
 reg [1:0] rx1_clk_i = 0;
@@ -603,16 +614,16 @@ assign delay_rx10_count_zero = ( 0 == delay_rx10_count );
 assign clk_delay_rx0_offset = ( CLK_DELAY_OFFSET << rx0_c_s[1:0] );
 assign clk_delay_rx1_offset = ( CLK_DELAY_OFFSET << rx1_c_s[1:0] );
 
-assign rx0_mclk_delta = ( 0 == rx0_c_s[13:10] ) ? ( $signed( {1'b0, {rx0_mclk_count[26:10],
-    rx0_c_s[9:0]}} ) - $signed( {1'b0, rx0_clk_count[30:4]} )) : 0;
-assign rx0_mclk_delta_p_ok = !( |rx0_mclk_delta[27:9] );
-assign rx0_mclk_delta_n_ok = &rx0_mclk_delta[27:9];
+assign rx0_mclk_delta = ( rx0_mclk_status ? $signed( {1'b0, {rx0_mclk_count[26:10],
+    rx0_c_s[9:0]}} ) : $signed( {1'b0, {rx0_mclk_count[26:0]}} )) - $signed( {1'b0, rx0_clk_count[30:4]} );
+assign rx0_mclk_delta_p_ok = !( |rx0_mclk_delta[27:MCLK_DELTA_OK_LSB] );
+assign rx0_mclk_delta_n_ok = &rx0_mclk_delta[27:MCLK_DELTA_OK_LSB];
 assign rx0_rt_clk_count = rx0_clk_count + rx0_delay + CLK_SYNC_OFFSET;
 
-assign rx1_mclk_delta = ( 0 == rx1_c_s[13:10] ) ? ( $signed( {1'b0, {rx1_mclk_count[26:10],
-    rx1_c_s[9:0]}} ) - $signed( {1'b0, rx1_clk_count[30:4]} )) : 0;
-assign rx1_mclk_delta_p_ok = !( |rx1_mclk_delta[27:9] );
-assign rx1_mclk_delta_n_ok = &rx1_mclk_delta[27:9];
+assign rx1_mclk_delta = ( rx1_mclk_status ? $signed( {1'b0, {rx1_mclk_count[26:10],
+    rx1_c_s[9:0]}} ) : $signed( {1'b0, {rx1_mclk_count[26:0]}} )) - $signed( {1'b0, rx1_clk_count[30:4]} );
+assign rx1_mclk_delta_p_ok = !( |rx1_mclk_delta[27:MCLK_DELTA_OK_LSB] );
+assign rx1_mclk_delta_n_ok = &rx1_mclk_delta[27:MCLK_DELTA_OK_LSB];
 assign rx1_rt_clk_count = rx1_clk_count + rx1_delay + CLK_SYNC_OFFSET;
 
 /*============================================================================*/
@@ -785,7 +796,7 @@ always @(posedge clk) begin : handle_ports
     rx0_mclk_count <= rx0_mclk_count + 1;
     if ( rx0_ready && rx1_ready && ( CHANNEL_OFFSET  == rx0_nb_bytes ) && ( 2'b01 == rx0_clk_i )) begin
         // Check for master clock count status at CLK_SYNC_OFFSET, ignore delta wraparounds
-        if (( 0 == rx0_c_s[13:10] ) && ( rx0_mclk_delta_p_ok || rx0_mclk_delta_n_ok )) begin
+        if ( rx0_mclk_status && ( rx0_mclk_delta_p_ok || rx0_mclk_delta_n_ok )) begin
             rx0_mclk_count[9:0] <= rx0_c_s[9:0];
         end
     end
@@ -793,13 +804,13 @@ always @(posedge clk) begin : handle_ports
     if ( rx0_ready ) begin
         if ( rx0_mclk_delta_p_ok ) begin
             rx0_clk_adjust <= CLK_10NS + 1;
-            if ( |rx0_mclk_delta[9:3] ) begin // Fast adjust!
+            if ( |rx0_mclk_delta[MCLK_DELTA_OK_LSB-1:3] ) begin // Fast adjust!
                 rx0_clk_adjust <= CLK_10NS + 7;
             end
         end
         if ( rx0_mclk_delta_n_ok ) begin
             rx0_clk_adjust <= CLK_10NS - 1;
-            if ( !( &rx0_mclk_delta[9:3] )) begin // Fast adjust!
+            if ( !( &rx0_mclk_delta[MCLK_DELTA_OK_LSB-1:3] )) begin // Fast adjust!
                 rx0_clk_adjust <= CLK_10NS - 7;
             end
         end
@@ -817,7 +828,7 @@ always @(posedge clk) begin : handle_ports
     rx1_mclk_count <= rx1_mclk_count + 1;
     if ( rx0_ready && rx1_ready && ( CHANNEL_OFFSET == rx1_nb_bytes ) && ( 2'b01 == rx1_clk_i )) begin
         // Check for master clock count status at CLK_SYNC_OFFSET, ignore delta wrap arounds!
-        if (( 0 == rx1_c_s[13:10] ) && ( rx1_mclk_delta_p_ok || rx1_mclk_delta_n_ok )) begin
+        if ( rx1_mclk_status && ( rx1_mclk_delta_p_ok || rx1_mclk_delta_n_ok )) begin
             rx1_mclk_count[9:0] <= rx1_c_s[9:0];
         end
     end
@@ -825,13 +836,13 @@ always @(posedge clk) begin : handle_ports
     if ( rx1_ready ) begin
         if ( rx1_mclk_delta_p_ok ) begin
             rx1_clk_adjust <= CLK_10NS + 1;
-            if( |rx1_mclk_delta[9:3] ) begin // Fast adjust!
+            if ( |rx1_mclk_delta[MCLK_DELTA_OK_LSB-1:3] ) begin // Fast adjust!
                 rx1_clk_adjust <= CLK_10NS + 7;
             end
         end
         if ( rx1_mclk_delta_n_ok ) begin
             rx1_clk_adjust <= CLK_10NS - 1;
-            if( !( &rx1_mclk_delta[9:3] )) begin // Fast adjust!
+            if ( !( &rx1_mclk_delta[MCLK_DELTA_OK_LSB-1:3] )) begin // Fast adjust!
                 rx1_clk_adjust <= CLK_10NS - 7;
             end
         end

@@ -994,6 +994,8 @@ always #40 tx1m_clk = ~tx1m_clk; // 12.5 MHz clock
 localparam [12:0] CLK_SYNC_CMD = `CLK_SYNC_0; // Select *_0, *_1, *_2 or *_3!
 localparam [12:0] CLK_SYNC_CMD_SET = CLK_SYNC_CMD | 13'h4;
 
+reg [9:0] rx0_mclk_count = 0;
+reg [9:0] rx1_mclk_count = 0;
 reg passed = 0;
 integer i = 0;
 integer j = 0;
@@ -1084,45 +1086,42 @@ begin
     wait ( rx1m_dv );
     #1000; // 1us
 
-    $display( "M/S clocks reset, set slave nodes rx0/rx1 clocks with -200ns!" );
-    slv_node_0.rx0_clk_count = ( master_clk_count - 20 ) * 16;
-    slv_node_1.rx0_clk_count = ( master_clk_count - 20 ) * 16;
-    slv_node_2.rx0_clk_count = ( master_clk_count - 20 ) * 16;
-    slv_node_0.rx1_clk_count = ( master_clk_count - 20 ) * 16;
-    slv_node_1.rx1_clk_count = ( master_clk_count - 20 ) * 16;
-    slv_node_2.rx1_clk_count = ( master_clk_count - 20 ) * 16;
+    rx0_mclk_count = ( master_clk_count[9:0] - 20 );
+    send_r0_packet( `MASTER_CLK_10L | rx0_mclk_count ); // Master clock status
+    rx1_mclk_count = ( master_clk_count[9:0] + 20 );
+    send_r1_packet( `MASTER_CLK_10L | rx1_mclk_count );
+
+    #1000; // 1us
+
+    $display( "M/S clocks reset, set slave nodes rx0/rx1 clocks with +/-200ns!" );
     $display( "Slave node 0, clock R0 = %0d.%0d, M0 = %0d, clock R1 = %0d.%0d, M1 = %0d",
-        slv_node_0.rx0_clk_count[67:4], slv_node_0.rx0_clk_count[3:0], master_clk_count,
-        slv_node_0.rx1_clk_count[67:4], slv_node_0.rx1_clk_count[3:0], master_clk_count );
+        slv_node_0.rx0_clk_count[67:4], slv_node_0.rx0_clk_count[3:0], slv_node_0.rx0_mclk_count,
+        slv_node_0.rx1_clk_count[67:4], slv_node_0.rx1_clk_count[3:0], slv_node_0.rx1_mclk_count );
     $display( "Slave node 1, clock R0 = %0d.%0d, M0 = %0d, clock R1 = %0d.%0d, M1 = %0d",
-        slv_node_1.rx0_clk_count[67:4], slv_node_1.rx0_clk_count[3:0], master_clk_count,
-        slv_node_1.rx1_clk_count[67:4], slv_node_1.rx1_clk_count[3:0], master_clk_count );
+        slv_node_1.rx0_clk_count[67:4], slv_node_1.rx0_clk_count[3:0], slv_node_1.rx0_mclk_count,
+        slv_node_1.rx1_clk_count[67:4], slv_node_1.rx1_clk_count[3:0], slv_node_1.rx1_mclk_count );
     $display( "Slave node 2, clock R0 = %0d.%0d, M0 = %0d, clock R1 = %0d.%0d, M1 = %0d",
-        slv_node_2.rx0_clk_count[67:4], slv_node_2.rx0_clk_count[3:0], master_clk_count,
-        slv_node_2.rx1_clk_count[67:4], slv_node_2.rx1_clk_count[3:0], master_clk_count );
+        slv_node_2.rx0_clk_count[67:4], slv_node_2.rx0_clk_count[3:0], slv_node_2.rx0_mclk_count,
+        slv_node_2.rx1_clk_count[67:4], slv_node_2.rx1_clk_count[3:0], slv_node_2.rx1_mclk_count );
     $display( "" );
 
     passed = 0;
-    for ( i = 0; (( i < 100 ) && !passed ); i = i + 1 ) begin
-    fork // Parallel operation
-        send_r0_packet( 13'd0 ); // Master clock status
-        send_r1_packet( 13'd0 );
-    join
-        passed =
-            ( slv_node_0.rx0_clk_count[67:10] == master_clk_count[63:6] ) &&
-            ( slv_node_0.rx1_clk_count[67:10] == master_clk_count[63:6] ) &&
-            ( slv_node_1.rx0_clk_count[67:10] == master_clk_count[63:6] ) &&
-            ( slv_node_1.rx1_clk_count[67:10] == master_clk_count[63:6] ) &&
-            ( slv_node_2.rx0_clk_count[67:10] == master_clk_count[63:6] ) &&
-            ( slv_node_2.rx1_clk_count[67:10] == master_clk_count[63:6] );
+    for ( i = 0; (( i < 200 ) && !passed ); i = i + 1 ) begin
+        fork // Parallel operation
+            send_r0_packet( {1'b1, `CMD_NOP} );
+            send_r1_packet( {1'b1, `CMD_NOP} );
+        join
+        passed = ( 0 == slv_node_0.rx0_mclk_delta ) && ( 0 == slv_node_0.rx1_mclk_delta ) &&
+            ( 0 == slv_node_1.rx0_mclk_delta ) && ( 0 == slv_node_1.rx1_mclk_delta ) &&
+            ( 0 == slv_node_2.rx0_mclk_delta ) && ( 0 == slv_node_2.rx1_mclk_delta );
     end
 
-    $display( "Slave node 0, clock R0 = %0d -> %0d, clock R1 = %0d -> %0d", slv_node_0.rx0_clk_count[67:4], master_clk_count,
-        slv_node_0.rx1_clk_count[67:4], master_clk_count );
-    $display( "Slave node 1, clock R0 = %0d -> %0d, clock R1 = %0d -> %0d", slv_node_1.rx0_clk_count[67:4], master_clk_count,
-        slv_node_1.rx1_clk_count[67:4], master_clk_count );
-    $display( "Slave node 2, clock R0 = %0d -> %0d, clock R1 = %0d -> %0d", slv_node_2.rx0_clk_count[67:4], master_clk_count,
-        slv_node_2.rx1_clk_count[67:4], master_clk_count );
+    $display( "Slave node 0, clock R0 = %0d -> %0d, clock R1 = %0d -> %0d", rx0s0_rt_clk_count[67:4], master_clk_count,
+        rx1s0_rt_clk_count[67:4], master_clk_count );
+    $display( "Slave node 1, clock R0 = %0d -> %0d, clock R1 = %0d -> %0d", rx0s1_rt_clk_count[67:4], master_clk_count,
+        rx1s1_rt_clk_count[67:4], master_clk_count );
+    $display( "Slave node 2, clock R0 = %0d -> %0d, clock R1 = %0d -> %0d", rx0s2_rt_clk_count[67:4], master_clk_count,
+        rx1s2_rt_clk_count[67:4], master_clk_count );
     $display( "Clock synchronization R0 and R1 %s", ( passed ? "passed" : "failed" ));
     $display( "" );
 
