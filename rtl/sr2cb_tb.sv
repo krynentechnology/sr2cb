@@ -323,6 +323,9 @@ always @(posedge clk) begin : collect_delay
     end
 end // collect_delay
 
+localparam MIDDLE_NODE = NR_SR2CB_SLAVE_NODES / 2;
+localparam LAST_NODE = NR_SR2CB_SLAVE_NODES - 1;
+
 integer i = 0;
 integer j = 0;
 reg passed = 0;
@@ -417,20 +420,38 @@ begin
     tx0m_c_s = 13'hFFF; // Set unkown command to stop sending master clock status!
     tx1m_c_s = 13'hFFF;
     passed = 0;
-    for ( j = 0; (( j < 100 ) && !passed ); j = j + 1 ) begin
+    for ( i = 0; (( i < 500 ) && !passed ); i = i + 1 ) begin
         wait ( phy_pre_0_dr ) @( negedge phy_pre_0_dr );
         wait ( phy_pre_1_dr ) @( negedge phy_pre_1_dr );
-        for ( i = 0; i < NR_SR2CB_SLAVE_NODES; i = i + 1 ) begin
-            passed = ( rx0s_rt_clk_count[i][67:10] == clk_m_count[63:6] );
-            passed = passed && ( rx0s_rt_clk_count[i][67:10] == clk_m_count[63:6] );
-            passed = passed && ( rx1s_rt_clk_count[i][67:10] == clk_m_count[63:6] );
-            passed = passed && ( rx1s_rt_clk_count[i][67:10] == clk_m_count[63:6] );
+        // Generated slave node instances are not addressable by index variable!
+        passed = ( 0 == slave_node[0].slvn.rx0_mclk_delta ) && ( 0 == slave_node[0].slvn.rx1_mclk_delta );
+        if ( passed && ( NR_SR2CB_SLAVE_NODES > 2 )) begin
+            passed = ( 0 == slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta ) &&
+                     ( 0 == slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
+        end
+        if ( passed && ( NR_SR2CB_SLAVE_NODES > 1 )) begin
+            passed = ( 0 == slave_node[LAST_NODE].slvn.rx0_mclk_delta ) &&
+                     ( 0 == slave_node[LAST_NODE].slvn.rx1_mclk_delta );
         end
     end
     $display( "Master clock = %0d",  clk_m_count );
     for ( i = 0; i < NR_SR2CB_SLAVE_NODES; i = i + 1 ) begin
         $display( "Slv_node[%0d], RX0 clock = %0d.%0d, RX1 clock = %0d.%0d", i, rx0s_rt_clk_count[i][67:4],
         rx0s_rt_clk_count[i][3:0], rx1s_rt_clk_count[i][67:4], rx1s_rt_clk_count[i][3:0] );
+    end
+    if ( !passed ) begin
+        $display( "Slv_node[0], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", slave_node[0].slvn.rx0_mclk_delta,
+            slave_node[0].slvn.rx1_mclk_delta );
+        if ( NR_SR2CB_SLAVE_NODES > 2 ) begin
+            $display( "Slv_node[%0d], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", MIDDLE_NODE,
+                slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta,
+                slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
+        end
+        if ( NR_SR2CB_SLAVE_NODES > 1 ) begin
+            $display( "Slv_node[%0d], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", LAST_NODE,
+                slave_node[LAST_NODE].slvn.rx0_mclk_delta,
+                slave_node[LAST_NODE].slvn.rx1_mclk_delta );
+        end
     end
     $display( "Clock synchronization R0 and R1 %s", ( passed ? "passed" : "failed" ));
     $display( "" );

@@ -73,7 +73,6 @@ endfunction
 
 localparam NODE_POS_OFFSET = PREAMBLE_SFD * 8;
 localparam CHANNEL_OFFSET  = NODE_POS_OFFSET + 4;
-localparam CLK_SYNC_OFFSET = ( CHANNEL_OFFSET + 1 ) * 8 * 16;
 localparam CHW = clog2( NR_CHANNELS ); // Channel width
 localparam NRBW = clog2( NR_CHANNELS + CHANNEL_OFFSET ); // RX bytes counter width
 localparam TX_WAIT_STATES = 4;
