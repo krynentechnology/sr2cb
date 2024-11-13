@@ -75,6 +75,7 @@ wire [2:0] tx0m_status;
 reg  [12:0] tx0m_c_s = 0;
 wire [2:0] tx1m_status;
 reg  [12:0] tx1m_c_s = 0;
+wire ring_reset_pending;
 wire [63:0] clk_m_count;
 /*---------------------------*/
 wire [7:0] phy_pre_0_d;
@@ -112,11 +113,13 @@ wire [13:0] rx0s_c_s[0:NR_SR2CB_SLAVE_NODES-1];
 wire [2:0] rx0s_status[0:NR_SR2CB_SLAVE_NODES-1];
 wire [27:0] rx0s_delay[0:NR_SR2CB_SLAVE_NODES-1];
 wire [67:0] rx0s_rt_clk_count[0:NR_SR2CB_SLAVE_NODES-1];
+wire rx0_clk_adjust_fast[0:NR_SR2CB_SLAVE_NODES-1];
 wire [12:0] rx1s_node_pos[0:NR_SR2CB_SLAVE_NODES-1];
 wire [13:0] rx1s_c_s[0:NR_SR2CB_SLAVE_NODES-1];
 wire [2:0] rx1s_status[0:NR_SR2CB_SLAVE_NODES-1];
 wire [27:0] rx1s_delay[0:NR_SR2CB_SLAVE_NODES-1];
 wire [67:0] rx1s_rt_clk_count[0:NR_SR2CB_SLAVE_NODES-1];
+wire rx1_clk_adjust_fast[0:NR_SR2CB_SLAVE_NODES-1];
 
 integer k = 0;
 /*============================================================================*/
@@ -192,6 +195,7 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .tx0_c_s(tx0m_c_s),
     .tx1_status(tx1m_status),
     .tx1_c_s(tx1m_c_s),
+    .ring_reset_pending(ring_reset_pending),
     .clk_count(clk_m_count)
 );
 
@@ -329,6 +333,55 @@ localparam LAST_NODE = NR_SR2CB_SLAVE_NODES - 1;
 integer i = 0;
 integer j = 0;
 reg passed = 0;
+reg [0:0] rdir = `CW_RDIR;
+
+/*============================================================================*/
+task display_results ( input [0:0] ring_reset );
+/*============================================================================*/
+begin
+    passed = 0;
+    for ( i = 0; (( i < 500 ) && !passed ); i = i + 1 ) begin
+        wait ( phy_pre_0_dr ) @( negedge phy_pre_0_dr );
+        wait ( phy_pre_1_dr ) @( negedge phy_pre_1_dr );
+        // Generated slave node instances are not addressable by index variable!
+        passed = ( 0 == slave_node[0].slvn.rx0_mclk_delta ) && ( 0 == slave_node[0].slvn.rx1_mclk_delta );
+        if ( passed && ( NR_SR2CB_SLAVE_NODES > 2 )) begin
+            passed = ( 0 == slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta ) &&
+                     ( 0 == slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
+        end
+        if ( passed && ( NR_SR2CB_SLAVE_NODES > 1 )) begin
+            passed = ( 0 == slave_node[LAST_NODE].slvn.rx0_mclk_delta ) &&
+                     ( 0 == slave_node[LAST_NODE].slvn.rx1_mclk_delta );
+        end
+    end
+    if ( ring_reset ) begin
+        $display( "Redundant ring reset, master clock = %0d",  clk_m_count );
+    end else begin
+        $display( "Master clock = %0d",  clk_m_count );
+    end
+    for ( i = 0; i < NR_SR2CB_SLAVE_NODES; i = i + 1 ) begin
+        $display( "Slv_node[%0d], RX0 clock = %0d.%0d, RX1 clock = %0d.%0d", i, rx0s_rt_clk_count[i][67:4],
+        rx0s_rt_clk_count[i][3:0], rx1s_rt_clk_count[i][67:4], rx1s_rt_clk_count[i][3:0] );
+    end
+    if ( !passed ) begin
+        $display( "Slv_node[0], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", slave_node[0].slvn.rx0_mclk_delta,
+            slave_node[0].slvn.rx1_mclk_delta );
+        if ( NR_SR2CB_SLAVE_NODES > 2 ) begin
+            $display( "Slv_node[%0d], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", MIDDLE_NODE,
+                slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta,
+                slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
+        end
+        if ( NR_SR2CB_SLAVE_NODES > 1 ) begin
+            $display( "Slv_node[%0d], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", LAST_NODE,
+                slave_node[LAST_NODE].slvn.rx0_mclk_delta,
+                slave_node[LAST_NODE].slvn.rx1_mclk_delta );
+        end
+    end
+    $display( "Clock synchronization R0 and R1 %s", ( passed ? "passed" : "failed" ));
+    $display( "" );
+end
+endtask
+
 /*============================================================================*/
 task ring_init ( input [0:0] rdir, input integer nb_delay_samples );
 /*============================================================================*/
@@ -419,42 +472,7 @@ begin
     end
     tx0m_c_s = 13'hFFF; // Set unkown command to stop sending master clock status!
     tx1m_c_s = 13'hFFF;
-    passed = 0;
-    for ( i = 0; (( i < 500 ) && !passed ); i = i + 1 ) begin
-        wait ( phy_pre_0_dr ) @( negedge phy_pre_0_dr );
-        wait ( phy_pre_1_dr ) @( negedge phy_pre_1_dr );
-        // Generated slave node instances are not addressable by index variable!
-        passed = ( 0 == slave_node[0].slvn.rx0_mclk_delta ) && ( 0 == slave_node[0].slvn.rx1_mclk_delta );
-        if ( passed && ( NR_SR2CB_SLAVE_NODES > 2 )) begin
-            passed = ( 0 == slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta ) &&
-                     ( 0 == slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
-        end
-        if ( passed && ( NR_SR2CB_SLAVE_NODES > 1 )) begin
-            passed = ( 0 == slave_node[LAST_NODE].slvn.rx0_mclk_delta ) &&
-                     ( 0 == slave_node[LAST_NODE].slvn.rx1_mclk_delta );
-        end
-    end
-    $display( "Master clock = %0d",  clk_m_count );
-    for ( i = 0; i < NR_SR2CB_SLAVE_NODES; i = i + 1 ) begin
-        $display( "Slv_node[%0d], RX0 clock = %0d.%0d, RX1 clock = %0d.%0d", i, rx0s_rt_clk_count[i][67:4],
-        rx0s_rt_clk_count[i][3:0], rx1s_rt_clk_count[i][67:4], rx1s_rt_clk_count[i][3:0] );
-    end
-    if ( !passed ) begin
-        $display( "Slv_node[0], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", slave_node[0].slvn.rx0_mclk_delta,
-            slave_node[0].slvn.rx1_mclk_delta );
-        if ( NR_SR2CB_SLAVE_NODES > 2 ) begin
-            $display( "Slv_node[%0d], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", MIDDLE_NODE,
-                slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta,
-                slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
-        end
-        if ( NR_SR2CB_SLAVE_NODES > 1 ) begin
-            $display( "Slv_node[%0d], rx0_mclk_delta = %0d, rx1_mclk_delta = %0d", LAST_NODE,
-                slave_node[LAST_NODE].slvn.rx0_mclk_delta,
-                slave_node[LAST_NODE].slvn.rx1_mclk_delta );
-        end
-    end
-    $display( "Clock synchronization R0 and R1 %s", ( passed ? "passed" : "failed" ));
-    $display( "" );
+    display_results( 0 );
 end
 endtask // ring_init
 
@@ -464,6 +482,7 @@ initial begin // Test bench
     rst_n  = 0;
     clk    = 0;
     passed = 0;
+    rdir   = `CW_RDIR; // Select CW/CCW direction
     /*---------*/
     for ( j = 0; j < NR_SR2CB_SLAVE_NODES; j = j + 1 ) begin
         for ( i = 0; i < 2; i = i + 1 ) begin
@@ -474,7 +493,25 @@ initial begin // Test bench
     $display( "SR2CB master/slave simulation started" );
     rst_n = 1;
     #100 // 100ns
-    ring_init( `CW_RDIR, 2 ); // Select CW/CCW direction, 0/1/2/4/8 delay samples!
+    ring_init( rdir, 2 ); // Select CW/CCW direction, 0/1/2/4/8 delay samples!
+    #1000 // 1us
+    wait ( tx0m_dv ) @( negedge tx0m_dv );
+    if ( rdir ) begin
+        tx1m_c_s = `RING_RESET;
+    end else begin
+        tx0m_c_s = `RING_RESET;
+    end
+    if ( rdir ) begin
+        wait( `RING_RESET == rx0m_c_s[12:0] );
+    end else begin
+        wait( `RING_RESET == rx1m_c_s[12:0] );
+    end
+    wait( ring_reset_pending );
+    tx0m_c_s = 0;
+    tx1m_c_s = 0;
+    wait (( `eR_IDLE == tx0m_status ) && ( `eR_IDLE == tx1m_status ));
+    wait ( master_node.rx0_clk_reset_cmd && master_node.rx1_clk_reset_cmd );
+    display_results( 1 );
     #1000 // 1us
     $finish;
 end

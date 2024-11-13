@@ -50,6 +50,7 @@ module sr2cb_m #(
     tx1_status, tx1_c_s,
     tx0rx0_valid,
     tx1rx1_valid,
+    ring_reset_pending,
     clk_count
     );
 
@@ -125,6 +126,7 @@ output reg  [2:0] tx1_status = 0;
 input  wire [12:0] tx1_c_s; // Command/status
 output reg  tx0rx0_valid = 0; // rx0_node_pos, rx0_c_s, rx0_delay valid
 output reg  tx1rx1_valid = 0; // rx1_node_pos, rx1_c_s, rx1_delay valid
+output wire ring_reset_pending;
 output wire [63:0] clk_count; // Actual master clock count
 
 // Registers and wires
@@ -186,7 +188,6 @@ reg         rx1_cmd_nop_i = 0;
 wire        rx1_clk_sync_cmd;
 wire        rx1_clk_sync_set_cmd;
 wire        rx1_clk_reset_cmd;
-reg         rx1_delay_set = 0;
 /*---------------------------*/
 reg   [7:0] tx1_d_i = 0;
 reg         tx1_dv_i = 0;
@@ -215,6 +216,13 @@ wire       tx1rx1_delay_set;
 reg [12:0] cmd_sync_0 = `CLK_SYNC_0; // Constant!
 reg [6:0]  tx0_tmp_c;
 reg [6:0]  tx1_tmp_c;
+reg        rx0_reset = 0;
+reg        rx1_reset = 0;
+reg        tx0_reset = 0;
+reg        tx1_reset = 0;
+wire       tx0_ring_reset;
+wire       tx1_ring_reset;
+wire       ring_reset;
 
 /*============================================================================*/
 initial begin : param_check // Parameter check
@@ -257,6 +265,12 @@ CW |  TX0 |->| RX0 TX1 |->| RX0 TX1 |->- - ->-| RX0 TX1 |->| RX0 TX1 |->| RX1  |
    +------+  +---------+  +---------+         +---------+  +---------+  +------+
 /=============================================================================*/
 
+assign tx0_ring_reset = ( `RING_RESET == tx0_c_s );
+assign tx1_ring_reset = ( `RING_RESET == tx1_c_s );
+assign ring_reset = ( tx0_ring_reset || tx1_ring_reset ) &&
+    (( `RING_RESET == rx0_c_s[12:0] ) || ( `RING_RESET == rx1_c_s[12:0] ));
+assign ring_reset_pending = rx0_reset & rx1_reset & tx0_reset & tx1_reset;
+
 assign rx0_idle = ( `eR_IDLE == rx0_status );
 assign rx0_ready = ( `eR_READY == rx0_status );
 assign rx0_cmd_nop = ( `CMD_NOP == rx0_c_s[12:0] ) && rx0_c_s[13];
@@ -268,7 +282,7 @@ assign rx0_ch_dr = !( rx0_nb_bytes < CHANNEL_OFFSET ) && rx0_ready && rx1_ready;
 assign rx0_tx0_ch = rx0_ch_dr ? ( rx0_nb_bytes - CHANNEL_OFFSET ) : 0;
 
 assign tx0_idle = ( `eR_IDLE == tx0_status );
-assign tx0_init = (( `eR_INIT == tx0_status ) || ( `eR_INIT == tx0_status_i ));
+assign tx0_init = ( `eR_INIT == tx0_status );
 assign tx0_wait = ( `eR_WAIT == tx0_status );
 assign tx0_ready = ( `eR_READY == tx0_status );
 assign tx0_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == tx0_c_s[12:3];
@@ -360,6 +374,7 @@ always @(posedge rx0_clk) begin : rx0_process
         end
     end else begin
         rx0_nb_bytes <= 0;
+        rx0_reset <= rx0_reset || ring_reset;
     end
 
     if (( rx0_dv_i && !tx0_dr ) || rx0_error ) begin
@@ -371,7 +386,7 @@ always @(posedge rx0_clk) begin : rx0_process
         rx0_status <= `eR_NO_RR; // Redundant ring broken
     end
 
-    if ( !rst_n ) begin
+    if ( !rst_n || ( rx0_reset && !rx0_dv && !ring_reset )) begin
         rx0_dir <= 0;
         rx0_dir_sync <= 0;
         rx0_status <= `eR_IDLE;
@@ -379,6 +394,7 @@ always @(posedge rx0_clk) begin : rx0_process
         rx00_d_i <= 0;
         rx01_d_i <= 0;
         rx0_dv_i <= 0;
+        rx0_reset <= 0;
     end
 end // rx0_process
 
@@ -489,13 +505,16 @@ always @(posedge rx0_clk) begin : tx0_process
                 tx0_status <= `eR_WAIT;
             end
         end
+        tx0_reset <= tx0_reset || ring_reset;
     end
-    if ( !rst_n ) begin
+    if ( !rst_n || ( tx0_reset && !tx0_dr && !ring_reset )) begin
         rx1_cmd_nop_i <= 0;
         tx0_status <= `eR_IDLE;
         tx0_nb_bytes <= 0;
         tx0_clk_reset_cmd_sent <= 0;
         tx0_wait_states <= 0;
+        tx0_c_s_i <= 0;
+        tx0_reset <= 0;
     end
 end // tx0_process
 
@@ -510,7 +529,7 @@ assign rx1_ch_dr = !( rx1_nb_bytes < CHANNEL_OFFSET ) && rx0_ready && rx1_ready;
 assign rx1_tx1_ch = rx1_ch_dr ? ( rx1_nb_bytes - CHANNEL_OFFSET ) : 0;
 
 assign tx1_idle = ( `eR_IDLE == tx1_status );
-assign tx1_init = (( `eR_INIT == tx1_status ) || ( `eR_INIT == tx1_status_i ));
+assign tx1_init = ( `eR_INIT == tx1_status );
 assign tx1_wait = ( `eR_WAIT == tx1_status );
 assign tx1_ready = ( `eR_READY == tx1_status );
 assign tx1_clk_sync_c_s = ( `CLK_SYNC_0 >> 3 ) == tx1_c_s[12:3];
@@ -602,6 +621,7 @@ always @(posedge rx1_clk) begin : rx1_process
         end
     end else begin
         rx1_nb_bytes <= 0;
+        rx1_reset <= rx1_reset || ring_reset;
     end
 
     if (( rx1_dv_i && !tx1_dr ) || rx1_error ) begin
@@ -613,7 +633,7 @@ always @(posedge rx1_clk) begin : rx1_process
         rx1_status <= `eR_NO_RR; // Redundant ring broken
     end
 
-    if ( !rst_n ) begin
+    if ( !rst_n || ( rx1_reset && !rx1_dv && !ring_reset )) begin
         rx1_dir <= 0;
         rx1_dir_sync <= 0;
         rx1_status <= `eR_IDLE;
@@ -621,6 +641,7 @@ always @(posedge rx1_clk) begin : rx1_process
         rx11_d_i <= 0;
         rx10_d_i <= 0;
         rx1_dv_i <= 0;
+        rx1_reset <= 0;
     end
 end // rx1_process
 
@@ -731,13 +752,16 @@ always @(posedge rx1_clk) begin : tx1_process
                 tx1_status <= `eR_WAIT;
             end
         end
+        tx1_reset <= tx1_reset || ring_reset;
     end
-    if ( !rst_n ) begin
+    if ( !rst_n || ( tx1_reset && !tx1_dr && !ring_reset )) begin
         rx0_cmd_nop_i <= 0;
         tx1_status <= `eR_IDLE;
         tx1_nb_bytes <= 0;
         tx1_clk_reset_cmd_sent <= 0;
         tx1_wait_states <= 0;
+        tx1_c_s_i <= 0;
+        tx1_reset <= 0;
     end
 end // tx1_process
 
@@ -750,6 +774,8 @@ reg [1:0] rx0_clk_i = 0;
 reg [1:0] rx1_clk_i = 0;
 reg [1:0] tx0_clk_i = 0;
 reg [1:0] tx1_clk_i = 0;
+reg tx0_rr_request = 0;
+reg tx1_rr_request = 0;
 wire tx0rx0_delay_count_zero;
 wire tx1rx1_delay_count_zero;
 wire [9:0] clk_delay_tx0_offset;
@@ -782,9 +808,24 @@ always @(posedge clk) begin : handle_ports
         delay_count <= delay_count + 1;
     end
 
-    if ( tx0_idle && tx1_idle ) begin
-        if ( rx0tx0_link ) begin
+    if ( !tx0_rr_request && !tx1_rr_request ) begin
+        if ( tx0_ring_reset ) begin
+            tx0_rr_request <= 1; // Ring reset request
+        end if ( tx1_ring_reset ) begin
+            tx1_rr_request <= 1;
+        end
+    end
+
+    if ( tx0_idle && tx1_idle && !ring_reset ) begin
+        if (( `eR_IDLE == tx0_status_i ) && ( 2'b10 == rx1_clk_i )) begin
+            dv11_en <= 0; // Disable when clk low, next cycle!
+        end
+        if (( `eR_IDLE == tx1_status_i ) && ( 2'b10 == rx0_clk_i )) begin
+            dv00_en <= 0; // Disable when clk low, next cycle!
+        end
+        if ( rx0tx0_link && !rx0_dv && !tx1_rr_request ) begin
             if ( 2'b10 == rx0_clk_i ) begin
+                tx0_rr_request <= 0;
                 tx0_status_i <= `eR_INIT;
                 dv00_en <= 0;
             end
@@ -792,8 +833,9 @@ always @(posedge clk) begin : handle_ports
                 dv11_en <= 1; // RX1 loopback!
             end
             delay_count <= clk_delay_tx0_offset;
-        end else if ( rx1tx1_link ) begin
+        end else if ( rx1tx1_link && !rx1_dv && !tx0_rr_request  ) begin
             if ( 2'b10 == rx1_clk_i ) begin
+                tx1_rr_request <= 0;
                 tx1_status_i <= `eR_INIT;
                 dv11_en <= 0;
             end
@@ -803,6 +845,10 @@ always @(posedge clk) begin : handle_ports
             delay_count <= clk_delay_tx1_offset;
         end
         clk_m_reset_done <= 0;
+        delay_nb_samples <= 0;
+        delay_count_en <= 0;
+        tx0rx0_delay_count <= 0;
+        tx1rx1_delay_count <= 0;
     end
 
     if ( tx0_wait && tx1_idle ) begin
@@ -888,7 +934,6 @@ always @(posedge clk) begin : handle_ports
 
     if ( !rst_n ) begin
         clk_m_count <= 0;
-        clk_m_reset_done <= 0;
         rx0_clk_i <= 0;
         rx1_clk_i <= 0;
         tx0_clk_i <= 0;
@@ -897,12 +942,6 @@ always @(posedge clk) begin : handle_ports
         tx1_status_i <= `eR_IDLE;
         dv00_en <= 0;
         dv11_en <= 0;
-        /*------------------*/
-        delay_nb_samples <= 0;
-        delay_count_en <= 0;
-        delay_count <= 0;
-        tx0rx0_delay_count <= 0;
-        tx1rx1_delay_count <= 0;
     end
 end // handle_ports
 
