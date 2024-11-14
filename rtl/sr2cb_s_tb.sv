@@ -180,8 +180,18 @@ sr2cb_s slv_node_0(
     .rx1_ch_dr(rx1s0_ch_dr),
     .tx1_ch_d(tx1s0_ch_d),
     .rx1_tx1_ch(rx1s0_tx1_ch),
+    .rx0_node_pos(),
+    .rx0_c_s(),
+    .rx0_status(),
+    .rx0_delay(),
     .rx0_rt_clk_count(rx0s0_rt_clk_count),
-    .rx1_rt_clk_count(rx1s0_rt_clk_count)
+    .rx0_clk_adjust_fast(),
+    .rx1_node_pos(),
+    .rx1_c_s(),
+    .rx1_status(),
+    .rx1_delay(),
+    .rx1_rt_clk_count(rx1s0_rt_clk_count),
+    .rx1_clk_adjust_fast()
 );
 
 defparam slv_node_0.NR_CHANNELS = NR_CHANNELS;
@@ -260,14 +270,26 @@ sr2cb_s slv_node_1(
     .tx1_err(),
     .rx0_ch_d(8'd0),
     .rx0_ch_dv(1'b0),
+    .rx0_ch_dr(),
     .tx0_ch_d(),
     .rx0_tx0_ch(),
     .rx1_ch_d(8'd0),
     .rx1_ch_dv(1'b0),
+    .rx0_ch_dr(),
     .tx1_ch_d(),
     .rx1_tx1_ch(),
+    .rx0_node_pos(),
+    .rx0_c_s(),
+    .rx0_status(),
+    .rx0_delay(),
     .rx0_rt_clk_count(rx0s1_rt_clk_count),
-    .rx1_rt_clk_count(rx1s1_rt_clk_count)
+    .rx0_clk_adjust_fast(),
+    .rx1_node_pos(),
+    .rx1_c_s(),
+    .rx1_status(),
+    .rx1_delay(),
+    .rx1_rt_clk_count(rx1s1_rt_clk_count),
+    .rx1_clk_adjust_fast()
 );
 
 defparam slv_node_1.NR_CHANNELS = NR_CHANNELS;
@@ -331,8 +353,18 @@ sr2cb_s slv_node_2(
     .rx1_ch_dr(rx1s2_ch_dr),
     .tx1_ch_d(tx1s2_ch_d),
     .rx1_tx1_ch(rx1s2_tx1_ch),
+    .rx0_node_pos(),
+    .rx0_c_s(),
+    .rx0_status(),
+    .rx0_delay(),
     .rx0_rt_clk_count(rx0s2_rt_clk_count),
-    .rx1_rt_clk_count(rx1s2_rt_clk_count)
+    .rx0_clk_adjust_fast(),
+    .rx1_node_pos(),
+    .rx1_c_s(),
+    .rx1_status(),
+    .rx1_delay(),
+    .rx1_rt_clk_count(rx1s2_rt_clk_count),
+    .rx1_clk_adjust_fast()
 );
 
 defparam slv_node_2.NR_CHANNELS = NR_CHANNELS;

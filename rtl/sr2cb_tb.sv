@@ -300,11 +300,13 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .rx0_status(rx0s_status[b]),
     .rx0_delay(rx0s_delay[b]),
     .rx0_rt_clk_count(rx0s_rt_clk_count[b]),
+    .rx0_clk_adjust_fast(rx0_clk_adjust_fast[b]),
     .rx1_node_pos(rx1s_node_pos[b]),
     .rx1_c_s(rx1s_c_s[b]),
     .rx1_status(rx1s_status[b]),
     .rx1_delay(rx1s_delay[b]),
-    .rx1_rt_clk_count(rx1s_rt_clk_count[b])
+    .rx1_rt_clk_count(rx1s_rt_clk_count[b]),
+    .rx1_clk_adjust_fast(rx1_clk_adjust_fast[b])
 );
 end
 endgenerate
