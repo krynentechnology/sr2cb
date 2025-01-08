@@ -16,19 +16,19 @@ if exist .\bin rmdir /Q/S bin
 if not exist .\bin mkdir bin
 cd .\bin
 if "%1"=="" (
-  iverilog -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
-  iverilog -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
+  iverilog.exe -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
+  iverilog.exe -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
 ) else (
   if "%1"=="VCD" (
-    iverilog -DGTK_WAVE -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
-    iverilog -DGTK_WAVE -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
+    iverilog.exe -DGTK_WAVE -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
+    iverilog.exe -DGTK_WAVE -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
   ) else (
-    iverilog -I .. -c ..\sr2cb_s_tb_files.txt
-    iverilog -I .. -c ..\sr2cb_tb_files.txt
+    iverilog.exe -I .. -c ..\sr2cb_s_tb_files.txt
+    iverilog.exe -I .. -c ..\sr2cb_tb_files.txt
   )
 )
-if exist sr2cb_s_tb.out vvp sr2cb_s_tb.out  
-if exist sr2cb_tb.out vvp sr2cb_tb.out
+if exist sr2cb_s_tb.out vvp.exe sr2cb_s_tb.out  
+if exist sr2cb_tb.out vvp.exe sr2cb_tb.out
 cd ..
 :END
 

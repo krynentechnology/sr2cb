@@ -28,7 +28,7 @@
 `default_nettype none
 
 // Dependencies:
-// `include "../sr2cb_m_phy_pre.v
+// `include "../sr2cb_m_phy_pre.v"
 // `include "../sr2cb_s.v"
 `include "sr2cb_def.v"
 

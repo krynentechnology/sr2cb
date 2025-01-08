@@ -28,6 +28,10 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+// Dependencies:
+// `include "../sr2cb_m_phy_pre.v"
+// `include "../sr2cb_m.v"
+// `include "../sr2cb_s.v"
 `include "sr2cb_def.v"
 
 /*============================================================================*/
@@ -316,7 +320,9 @@ always #40 rxtx_clk = ~rxtx_clk; // 12.5 MHz clock
 
 reg [27:0] delay[0:NR_SR2CB_SLAVE_NODES-1][0:1]; // Delay received from all nodes
 
+/*============================================================================*/
 always @(posedge clk) begin : collect_delay
+/*============================================================================*/
     if ( tx0rx0_valid ) begin
         if ( 0 == delay[rx0m_node_pos][0] ) begin
             delay[rx0m_node_pos][0] <= rx0m_delay;
