@@ -18,8 +18,8 @@
  *           https://www.gnu.org/licenses/lgpl-3.0.html
  *
  *  Description: PHY MDIO protocol (ST = STart, OP = OPcode, PA = Phy Address,
-                 RA = Register Address, TA = Turn Around, D16 = data,
-                 Z = tristate, RD = ReaD, WR = WRite)
+ *               RA = Register Address, TA = Turn Around, D16 = data,
+ *               Z = tristate, RD = ReaD, WR = WRite)
  *
  *          ST  OP  PA5   RA5   TA  D16
  *  RD:     0 1 1 0 bbbbb bbbbb Z 0 bbbb...bbbb
@@ -200,7 +200,7 @@ always @(posedge clk) begin : mdio_protocol
         bit_count <= 6'h3F;
         s_mdio_dr_i <= 1;
         s_mdio_rd_i <= 0;
-        s_mdio_a_i = 16'h4002;
+        s_mdio_a_i <= 16'h4002;
         mdio_i <= 1'bZ;
         mdio_busy <= 0;
         preamble <= 0;
