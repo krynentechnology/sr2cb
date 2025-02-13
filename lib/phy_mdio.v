@@ -114,7 +114,7 @@ assign s_mdio_dr = s_mdio_dr_i & ~s_mdio_dv;
 genvar i;
 generate
 if ( PARALLEL ) begin
-    for ( i = 0; i < NR_PHY; i = i + 1 ) begin
+    for ( i = 0; i < NR_PHY; i = i + 1 ) begin : parallel_mdio
     assign mdc[i] = ( !s_mdio_dr_i && ( i == s_mdio_pa_i )) ? mdio_clk : 1'b0;
     assign mdio[i] = ( !s_mdio_dr_i && ( i == s_mdio_pa_i )) ? mdio_i : 1'bZ;
     end
