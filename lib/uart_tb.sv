@@ -41,8 +41,10 @@ reg  uart1_tx_dv = 0;
 wire uart1_tx_dr;
 wire uart1_rx;
 wire uart1_tx;
+wire uart4_tx;
+reg  uart_tx4_rx1 = 0;
 
-assign uart1_rx = uart1_tx;
+assign uart1_rx = uart_tx4_rx1 ? uart4_tx : uart1_tx;
 
 uart #(
     .CLK_FREQ( 250 ),
@@ -129,6 +131,68 @@ uart3 (
     .uart_tx(uart3_tx)
     );
 
+wire [NR_BITS_1-1:0] uart4_rx_d;
+wire uart4_rx_dv;
+wire parity4_ok;
+wire [NR_BITS_1-1:0] uart4_tx_d;
+wire uart4_tx_dv;
+wire uart4_tx_dr;
+wire uart4_rx;
+
+assign uart4_rx = uart1_tx; // Input UART1 TX!
+
+uart #(
+    .CLK_FREQ( 250 ),
+    .BAUD_RATE( 50 ),
+    .NR_BITS( NR_BITS_1 ),
+    .PARITY( "NONE" ),
+    .STOP_BITS( 1 ))
+uart4 (
+    .clk(clk),
+    .rst_n(rst_n),
+    .uart_rx_d(uart4_rx_d),
+    .uart_rx_dv(uart4_rx_dv),
+    .parity_ok(parity4_ok),
+    .uart_tx_d(uart4_tx_d),
+    .uart_tx_dv(uart4_tx_dv),
+    .uart_tx_dr(uart4_tx_dr),
+    .uart_rx(uart4_rx),
+    .uart_tx(uart4_tx)
+    );
+
+wire [NR_BITS_1-1:0] uart4_io_rx_d;
+wire uart4_io_rx_dv;
+reg  uart4_io_rx_dr = 1;
+wire parity4_io_ok;
+wire rx_count_nz;
+reg  [NR_BITS_1-1:0] uart4_io_tx_d = 0;
+reg  uart4_io_tx_dv = 0;
+wire uart4_io_tx_dr;
+
+uart_io #(
+    .PROMPT( "C10LP>" ),
+    .NR_BITS( NR_BITS_1 ),
+    .SKIP_SPACE( 0 ),
+    .RX_FIFO( 8 ))
+console (
+    .clk(clk),
+    .rst_n(rst_n),
+    .uart_io_rx_d(uart4_io_rx_d),
+    .uart_io_rx_dv(uart4_io_rx_dv),
+    .uart_io_rx_dr(uart4_io_rx_dr),
+    .parity_io_ok(parity4_io_ok),
+    .rx_count_nz(rx_count_nz),
+    .uart_io_tx_d(uart4_io_tx_d),
+    .uart_io_tx_dv(uart4_io_tx_dv),
+    .uart_io_tx_dr(uart4_io_tx_dr),
+    .uart_rx_d(uart4_rx_d),
+    .uart_rx_dv(uart4_rx_dv),
+    .parity_ok(parity4_ok),
+    .uart_tx_d(uart4_tx_d),
+    .uart_tx_dv(uart4_tx_dv),
+    .uart_tx_dr(uart4_tx_dr)
+    );
+
 always #5 clk = ~clk; // 100MHz clock
 
 /*============================================================================*/
@@ -187,6 +251,15 @@ begin
         wait ( clk ) @( negedge clk );
         uart3_tx_dv = 0;
     end
+    if ( 4 == uart ) begin
+        wait ( uart4_io_tx_dr );
+        wait ( clk ) @( negedge clk );
+        uart4_io_tx_d = uart_d;
+        uart4_io_tx_dv = 1;
+        wait ( !uart4_io_tx_dr );
+        wait ( clk ) @( negedge clk );
+        uart4_io_tx_dv = 0;
+    end
 end
 endtask // mdio_rw
 
@@ -194,6 +267,8 @@ endtask // mdio_rw
 initial begin
 /*============================================================================*/
     rst_n = 0;
+    uart_tx4_rx1 = 0;
+    uart4_io_rx_dr = 1;
     #100
     rst_n = 1;
     $display( "UART simulation started" );
@@ -214,6 +289,19 @@ initial begin
     uart_write( 3, 12'h5A5 );
     uart_write( 3, 12'h801 );
     uart_write( 3, 0 );
+    /*----------------------*/
+    uart_tx4_rx1 = 1;
+    uart4_io_rx_dr = 0;
+    uart_write( 1, 8'h81 );
+    uart_write( 1, 8'h5A );
+    uart_write( 1, 8'hA5 );
+    uart_write( 1, 8'h81 );
+    uart_write( 1, 0 );
+    uart_write( 1, 8'h0A ); // LF
+    #5000
+    uart4_io_rx_dr = 1;
+    #4000
+    uart_write( 4, 8'hFF );
     #1000
     $display( "Simulation finished" );
     $finish;

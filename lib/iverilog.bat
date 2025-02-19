@@ -18,16 +18,16 @@ cd .\bin
 if "%1"=="" (
   iverilog.exe -o phy_mdio_tb.out -I .. ..\phy_mdio.v ..\phy_mdio_tb.sv
   iverilog.exe -o randomizer_tb.out -I .. ..\randomizer.v ..\randomizer_tb.sv
-  iverilog.exe -o uart_tb.out -I .. ..\uart.v ..\uart_tb.sv
+  iverilog.exe -o uart_tb.out -I .. ..\uart.v ..\uart_io.v ..\uart_tb.sv
 ) else (
   if "%1"=="VCD" (
     iverilog.exe -DGTK_WAVE -o phy_mdio_tb.out -I .. ..\phy_mdio.v ..\phy_mdio_tb.sv
     iverilog.exe -DGTK_WAVE -o randomizer_tb.out -I .. ..\randomizer.v ..\randomizer_tb.sv
-    iverilog.exe -DGTK_WAVE -o uart_tb.out -I .. ..\uart.v ..\uart_tb.sv
+    iverilog.exe -DGTK_WAVE -o uart_tb.out -I .. ..\uart.v ..\uart_io.v ..\uart_tb.sv
   ) else (
     iverilog.exe -I .. ..\phy_mdio.v ..\phy_mdio_tb.sv
     iverilog.exe -I .. ..\randomizer.v ..\randomizer_tb.sv
-    iverilog.exe -I .. ..\uart.v ..\uart_tb.sv
+    iverilog.exe -I .. ..\uart.v ..\uart_io.v ..\uart_tb.sv
   )
 )
 if exist phy_mdio_tb.out vvp.exe phy_mdio_tb.out

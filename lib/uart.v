@@ -193,6 +193,7 @@ always @(posedge clk) begin : process_tx
         end
     end
     if ( !rst_n ) begin
+        uart_tx <= 1;
         uart_tx_d_i <= 0;
         uart_tx_dr_i <= 1;
     end
