@@ -176,8 +176,11 @@ always @(posedge clk) begin : uart_handler
     end else if ( uart_io_rx_dr ) begin
         if ( rx_count_nz ) begin
             if ( rx_enable ) begin
-                uart_io_rx_d <= fifo[rx_count-1];
+                uart_io_rx_d <= fifo[0];
                 uart_io_rx_dv <= 1;
+                for ( i = 0; i < ( RX_FIFO - 1 ); i = i + 1 ) begin
+                    fifo[i] <= fifo[i+1];
+                end
                 rx_count <= rx_count - 1;
             end
         end else begin
