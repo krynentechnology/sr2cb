@@ -246,20 +246,18 @@ assign mdio_3[2] = ( mdio_rd_status_3[2] ) ? m_mdio_3[15] : ( mdio_rd_status_3 >
 task mdio_rw( input [4:0] pa,
               input [4:0] ra,
               input [15:0] m_d,
-              input [0:0] rw );
+              input [0:0] rd );
 /*============================================================================*/
 begin
     s_mdio_pa = pa;
     s_mdio_ra = ra;
-    if ( rw ) begin
-        s_mdio_d = m_d;
-    end
-    s_mdio_rd = rw;
+    s_mdio_d = m_d;
+    s_mdio_rd = rd;
     wait ( s_mdio_dr_3 && !mdio_clk );
     s_mdio_dv = 1;
     wait ( mdio_clk ) @( posedge mdio_clk );
     s_mdio_dv = 0;
-    if ( rw ) begin
+    if ( rd ) begin
         wait ( m_mdio_dv_3 );
     end else begin
         wait ( s_mdio_dr_3 );

@@ -163,6 +163,10 @@ always @(posedge clk) begin : mdio_protocol
                     mdio_o_en <= 0; // Disable MDIO output
                 end
             end
+            if (( 2'b00 == bit_count[5:4] ) || ( 6'd16 == bit_count )) begin
+                mdio_o <= s_mdio_d_i[15];
+                s_mdio_d_i <= {s_mdio_d_i[14:0], 1'b0};
+            end
             if ( 0 == bit_count ) begin
                 s_mdio_dr_n <= 0;
                 mdio_o <= 0;
