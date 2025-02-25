@@ -39,7 +39,7 @@ module uart_io #(
     output reg  uart_io_rx_dv = 0,
     input  wire uart_io_rx_dr,
     output reg  parity_io_ok = 0,
-    output wire rx_count_nz, // RX FIFO count non zero
+    output wire rx_fifo_nz, // RX FIFO input non zero
     // UART IO TX
     input  wire [NR_BITS-1:0] uart_io_tx_d,
     input  wire uart_io_tx_dv,
@@ -115,7 +115,7 @@ reg tx_bs = 0;
 reg tx_space = 0;
 reg tx_xon = 0;
 
-assign rx_count_nz = |rx_count;
+assign rx_fifo_nz = |rx_count;
 assign uart_io_tx_dr = uart_tx_dr & tx_xon & ~( tx_prompt | tx_space | tx_bs );
 
 reg [7:0] prompt [0:PROMPT_SIZE+1]; // +2 for XOFF, XON
@@ -151,7 +151,7 @@ always @(posedge clk) begin : uart_handler
             uart_tx_dv <= 1;
         end
         if ( BS == uart_rx_d ) begin
-            if ( rx_count_nz ) begin
+            if ( rx_fifo_nz ) begin
                 rx_count <= rx_count - 1;
                 uart_tx_dv <= 1;
                 tx_space <= 1;
@@ -172,9 +172,9 @@ always @(posedge clk) begin : uart_handler
         if ( XOFF == uart_rx_d ) begin
             tx_xon <= 0;
         end
-        parity_io_ok <= rx_count_nz ? ( parity_io_ok & parity_ok ) : parity_ok;
+        parity_io_ok <= rx_fifo_nz ? ( parity_io_ok & parity_ok ) : parity_ok;
     end else if ( uart_io_rx_dr ) begin
-        if ( rx_count_nz ) begin
+        if ( rx_fifo_nz ) begin
             if ( rx_enable ) begin
                 uart_io_rx_d <= fifo[0];
                 uart_io_rx_dv <= 1;
@@ -211,6 +211,10 @@ always @(posedge clk) begin : uart_handler
         if ( uart_io_tx_dr && uart_io_tx_dv ) begin
             uart_tx_d <= uart_io_tx_d;
             uart_tx_dv <= 1;
+            if ( LF == uart_io_tx_d ) begin
+                tx_prompt <= 1;
+                tx_count <= 0;
+            end
         end
     end
     if ( !rst_n ) begin

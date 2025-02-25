@@ -164,7 +164,7 @@ wire [NR_BITS_1-1:0] uart4_io_rx_d;
 wire uart4_io_rx_dv;
 reg  uart4_io_rx_dr = 1;
 wire parity4_io_ok;
-wire rx_count_nz;
+wire rx_fifo_nz;
 reg  [NR_BITS_1-1:0] uart4_io_tx_d = 0;
 reg  uart4_io_tx_dv = 0;
 wire uart4_io_tx_dr;
@@ -181,7 +181,7 @@ console (
     .uart_io_rx_dv(uart4_io_rx_dv),
     .uart_io_rx_dr(uart4_io_rx_dr),
     .parity_io_ok(parity4_io_ok),
-    .rx_count_nz(rx_count_nz),
+    .rx_fifo_nz(rx_fifo_nz),
     .uart_io_tx_d(uart4_io_tx_d),
     .uart_io_tx_dv(uart4_io_tx_dv),
     .uart_io_tx_dr(uart4_io_tx_dr),

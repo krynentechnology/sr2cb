@@ -44,14 +44,14 @@ wire m_mdio_dv_1;
 reg  [15:0] s_mdio_1 = 0;
 reg  [15:0] m_mdio_1 = 0;
 reg  mdio_rd_1 = 0;
-reg  [1:0] mdio_rd_status_1 = 0;
+reg  [2:0] mdio_rd_status_1 = 0;
 reg  mdio_wr_1 = 0;
 wire mdc_1;
 wire mdio_1;
 
 phy_mdio #(
     .NR_PHY( 1 ),
-    .PREAMBLE( 0 ),
+    .PREAMBLE( 1 ),
     .PARALLEL( 0 ))
 phy1 (
     .clk(clk),
@@ -76,14 +76,14 @@ wire m_mdio_dv_2;
 reg  [15:0] s_mdio_2 = 0;
 reg  [15:0] m_mdio_2 = 0;
 reg  mdio_rd_2 = 0;
-reg  [1:0] mdio_rd_status_2 = 0;
+reg  [2:0] mdio_rd_status_2 = 0;
 reg  mdio_wr_2 = 0;
 wire mdc_2;
 wire mdio_2;
 
 phy_mdio #(
     .NR_PHY( 1 ),
-    .PREAMBLE( 0 ),
+    .PREAMBLE( 1 ),
     .PARALLEL( 1 ))
 phy2 (
     .clk(clk),
@@ -108,14 +108,14 @@ wire m_mdio_dv_3;
 reg  [15:0] s_mdio_3 = 0;
 reg  [15:0] m_mdio_3 = 0;
 reg  mdio_rd_3 = 0;
-reg  [1:0] mdio_rd_status_3 = 0;
+reg  [2:0] mdio_rd_status_3 = 0;
 reg  mdio_wr_3 = 0;
 wire [2:0] mdc_3;
 wire [2:0] mdio_3;
 
 phy_mdio #(
     .NR_PHY( 3 ),
-    .PREAMBLE( 1 ),
+    .PREAMBLE( 32 ),
     .PARALLEL( 1 ))
 phy3 (
     .clk(clk),
@@ -154,71 +154,93 @@ always @(posedge clk) begin : read_write_data
             mdio_wr_3 <= 0;
         end else begin
             s_mdio_1 <= {s_mdio_1[14:0], mdio_1};
-            if ( 4'b0110 == s_mdio_1[3:0] && !mdio_wr_1 ) begin
+            if ( 5'b10110 == s_mdio_1[4:0] && !mdio_wr_1 ) begin
                 mdio_rd_1 <= 1;
             end
             if ( mdio_rd_1 && ( 1'bZ === mdio_1 )) begin // Detect MDIO = Z
                 mdio_rd_status_1 <= 1;
             end
-            if (( 1 == mdio_rd_status_1 ) && ( 0 == mdio_1 )) begin // Detect Z0
-                mdio_rd_status_1 <= 2;
+            if (( 2 == mdio_rd_status_1 ) && ( 0 == mdio_1 )) begin // Detect Z0
+                mdio_rd_status_1 <= 3;
             end
-            if ( 2 == mdio_rd_status_1 ) begin
-                m_mdio_1 <= {m_mdio_1[14:0], 1'b0};
-            end
-            if ( 4'b0101 == s_mdio_1[3:0] && !mdio_rd_1 ) begin
+            if ( 5'b10101 == s_mdio_1[4:0] && !mdio_rd_1 ) begin
                 mdio_wr_1 <= 1;
-            end
-            if ( mdio_wr_1 && !s_mdio_dr_1 ) begin
-                m_mdio_1 <= {m_mdio_1[14:0], mdio_1};
             end
             /*---------------------------------*/
             s_mdio_2 <= {s_mdio_2[14:0], mdio_2};
-            if ( 4'b0110 == s_mdio_2[3:0] && !mdio_wr_2 ) begin
+            if ( 5'b10110 == s_mdio_2[4:0] && !mdio_wr_2 ) begin
                 mdio_rd_2 <= 1;
             end
             if ( mdio_rd_2 && ( 1'bZ === mdio_2 )) begin // Detect MDIO = Z
                 mdio_rd_status_2 <= 1;
             end
-            if (( 1 == mdio_rd_status_2 ) && ( 0 == mdio_2 )) begin // Detect Z0
-                mdio_rd_status_2 <= 2;
+            if (( 2 == mdio_rd_status_2 ) && ( 0 == mdio_2 )) begin // Detect Z0
+                mdio_rd_status_2 <= 3;
             end
-            if ( 2 == mdio_rd_status_2 ) begin
-                m_mdio_2 <= {m_mdio_2[14:0], 1'b0};
-            end
-            if ( 4'b0101 == s_mdio_2[3:0] && !mdio_rd_2 ) begin
+            if ( 5'b10101 == s_mdio_2[4:0] && !mdio_rd_2 ) begin
                 mdio_wr_2 <= 1;
-            end
-            if ( mdio_wr_2  && !s_mdio_dr_2 ) begin
-                m_mdio_2 <= {m_mdio_2[14:0], mdio_2};
             end
             /*---------------------------------*/
             s_mdio_3 <= {s_mdio_3[14:0], mdio_3[2]}; // PA = 2!
-            if ( 4'b0110 == s_mdio_3[3:0] && !mdio_wr_3 ) begin
+            if ( 5'b10110 == s_mdio_3[4:0] && !mdio_wr_3 ) begin
                 mdio_rd_3 <= 1;
             end
             if ( mdio_rd_3 && ( 1'bZ === mdio_3[2] )) begin // Detect MDIO = Z
                 mdio_rd_status_3 <= 1;
             end
-            if (( 1 == mdio_rd_status_3 ) && ( 0 == mdio_3[2] )) begin // Detect Z0
-                mdio_rd_status_3 <= 2;
+            if (( 2 == mdio_rd_status_3 ) && ( 0 == mdio_3[2] )) begin // Detect Z0
+                mdio_rd_status_3 <= 3;
             end
-            if ( 2 == mdio_rd_status_3 ) begin
-                m_mdio_3 <= {m_mdio_3[14:0], 1'b0};
-            end
-            if ( 4'b0101 == s_mdio_3[3:0] && !mdio_rd_3 ) begin
+            if ( 5'b10101 == s_mdio_3[4:0] && !mdio_rd_3 ) begin
                 mdio_wr_3 <= 1;
             end
-            if ( mdio_wr_3 ) begin
-                m_mdio_3 <= {m_mdio_3[14:0], mdio_3[2]};
-            end
+        end
+    end
+    if ( 2'b10 == mdc ) begin // Falling edge MDC
+        if ( 1 == mdio_rd_status_1 ) begin // Set 0 turn around
+            mdio_rd_status_1 <= 2;
+        end
+        if ( 3 == mdio_rd_status_1 ) begin
+            mdio_rd_status_1 <= 4;
+        end
+        if ( 4 == mdio_rd_status_1 ) begin
+            m_mdio_1 <= {m_mdio_1[14:0], 1'b0};
+        end
+        if ( mdio_wr_1 && !s_mdio_dr_1 ) begin
+            m_mdio_1 <= {m_mdio_1[14:0], mdio_1};
+        end
+        /*---------------------------------*/
+        if ( 1 == mdio_rd_status_2 ) begin // Set 0 turn around
+            mdio_rd_status_2 <= 2;
+        end
+        if ( 3 == mdio_rd_status_2 ) begin
+            mdio_rd_status_2 <= 4;
+        end
+        if ( 4 == mdio_rd_status_2 ) begin
+            m_mdio_2 <= {m_mdio_2[14:0], 1'b0};
+        end
+        if ( mdio_wr_2  && !s_mdio_dr_2 ) begin
+            m_mdio_2 <= {m_mdio_2[14:0], mdio_2};
+        end
+        /*---------------------------------*/
+        if ( 1 == mdio_rd_status_3 ) begin // Set 0 turn around
+            mdio_rd_status_3 <= 3;
+        end
+        if ( 3 == mdio_rd_status_3 ) begin
+            mdio_rd_status_3 <= 4;
+        end
+        if ( 4 == mdio_rd_status_3 ) begin
+            m_mdio_3 <= {m_mdio_3[14:0], 1'b0};
+        end
+        if ( mdio_wr_3 ) begin
+            m_mdio_3 <= {m_mdio_3[14:0], mdio_3[2]};
         end
     end
 end // read_write_data
 
-assign mdio_1 = ( 1 == mdio_rd_status_1 ) ? 0 : ( mdio_rd_status_1 > 1 ) ? m_mdio_1[15] : 1'bZ;
-assign mdio_2 = ( 1 == mdio_rd_status_2 ) ? 0 : ( mdio_rd_status_2 > 1 ) ? m_mdio_2[15] : 1'bZ;
-assign mdio_3[2] = ( 1 == mdio_rd_status_3 ) ? 0 : ( mdio_rd_status_3 > 1 ) ? m_mdio_3[15] : 1'bZ;
+assign mdio_1 = ( mdio_rd_status_1[2] ) ? m_mdio_1[15] : ( mdio_rd_status_1 > 1 ) ? 0 : 1'bZ;
+assign mdio_2 = ( mdio_rd_status_2[2] ) ? m_mdio_2[15] : ( mdio_rd_status_2 > 1 ) ? 0 : 1'bZ;
+assign mdio_3[2] = ( mdio_rd_status_3[2] ) ? m_mdio_3[15] : ( mdio_rd_status_3 > 1 ) ? 0 : 1'bZ;
 
 /*============================================================================*/
 task mdio_rw( input [4:0] pa,
