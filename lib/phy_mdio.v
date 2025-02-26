@@ -42,6 +42,7 @@ module phy_mdio #(
 /*============================================================================*/
     parameter [4:0] NR_PHY = 2,
     parameter [5:0] PREAMBLE = 1, // 1 to 32-bit preamble, minumum 1 idle bit
+    parameter [0:0] TL_BIDIR = 0, // 1 = top level bidirectional pin only
     parameter [0:0] PARALLEL = 0 ) // 1 = each PHY has a separate
     (                              // MDC and MDIO line
     clk, // Clock rate > 4 * mdio_clk clock rate!
@@ -57,7 +58,10 @@ module phy_mdio #(
     m_mdio_d, // Data out
     m_mdio_dv, // Data valid
     mdc, // Management Data Clock
-    mdio // Management Data Input Output
+    mdio, // Management Data Input Output
+    mdio_i, // MDIO in
+    mdio_o, // MDIO out
+    mdio_oe // MDIO out enable
     );
 
 localparam MAX_CLOG2_WIDTH = 5;
@@ -94,6 +98,9 @@ output reg  [15:0] m_mdio_d = 0;
 output reg  m_mdio_dv = 0;
 output wire [NR_PHY-1:0] mdc;
 inout  wire [NR_PHY-1:0] mdio;
+input  wire mdio_i;
+output reg  mdio_o = 0;
+output reg  mdio_oe = 0;
 
 /*============================================================================*/
 initial begin : parameter_check
@@ -104,34 +111,35 @@ initial begin : parameter_check
     end
 end // parameter_check
 
-reg [1:0] mdio_clk_i = 0;
-reg [PA_WIDTH-1:0] s_mdio_pa_i = 0;
-reg [15:0] s_mdio_a_i = 0;
-reg [15:0] s_mdio_d_i = 0;
-reg s_mdio_dr_n = 0;
-reg s_mdio_rd_i = 0;
-reg [15:0] m_mdio_d_i = 0;
-reg mdio_o = 0; // Output PHY MDIO
-reg mdio_o_en = 0; // Output enable flag
-reg [5:0] bit_count = 0;
+reg  [1:0] mdio_clk_i = 0;
+reg  [PA_WIDTH-1:0] s_mdio_pa_i = 0;
+reg  [15:0] s_mdio_a_i = 0;
+reg  [15:0] s_mdio_d_i = 0;
+reg  s_mdio_dr_n = 0;
+reg  s_mdio_rd_i = 0;
+reg  [15:0] m_mdio_d_i = 0;
+reg  [5:0] bit_count = 0;
+wire mdio_ii;
+wire mdio_iii;
 
 assign s_mdio_dr = ~s_mdio_dr_n;
-wire mdio_i; // Input PHY MDIO
 
 genvar i;
 generate
 if ( PARALLEL ) begin
     for ( i = 0; i < NR_PHY; i = i + 1 ) begin : parallel_mdio
     assign mdc[i] = ( s_mdio_dr_n && ( i == s_mdio_pa_i )) ? mdio_clk : 1'b0;
-    assign mdio[i] = ( s_mdio_dr_n && mdio_o_en && ( i == s_mdio_pa_i )) ? mdio_o : 1'bZ;
+    assign mdio[i] = ( s_mdio_dr_n && mdio_oe && ( i == s_mdio_pa_i )) ? mdio_o : 1'bZ;
     end
-    assign mdio_i = mdio[s_mdio_pa_i];
+    assign mdio_ii = mdio[s_mdio_pa_i];
 end else begin
     assign mdc[0] = s_mdio_dr_n ? mdio_clk : 1'b0;
-    assign mdio[0] = ( s_mdio_dr_n && mdio_o_en ) ? mdio_o : 1'bZ;
-    assign mdio_i = mdio[0];
-end
+    assign mdio[0] = ( s_mdio_dr_n && mdio_oe ) ? mdio_o : 1'bZ;
+    assign mdio_ii = mdio[0];
+end // PARALLEL
 endgenerate
+
+assign mdio_iii = TL_BIDIR ? mdio_i : mdio_ii;
 
 /*============================================================================*/
 always @(posedge clk) begin : mdio_protocol
@@ -151,16 +159,17 @@ always @(posedge clk) begin : mdio_protocol
             s_mdio_d_i <= s_mdio_d;
             s_mdio_rd_i <= s_mdio_rd;
             mdio_o <= 1;
-            mdio_o_en <= 1;
+            mdio_oe <= 1;
             bit_count <= 6'd31 + PREAMBLE;
         end
         if ( s_mdio_dr_n ) begin
+            bit_count <= bit_count - 1;
             mdio_o <= s_mdio_a_i[15];
             s_mdio_a_i <= {s_mdio_a_i[14:0], 1'b0};
             if ( 2'b01 == bit_count[5:4] ) begin
                 m_mdio_d_i <= 0;
                 if ( s_mdio_rd_i && ( 4'h2 == bit_count[3:0] )) begin
-                    mdio_o_en <= 0; // Disable MDIO output
+                    mdio_oe <= 0; // Disable MDIO output
                 end
             end
             if (( 2'b00 == bit_count[5:4] ) || ( 6'd16 == bit_count )) begin
@@ -170,18 +179,17 @@ always @(posedge clk) begin : mdio_protocol
             if ( 0 == bit_count ) begin
                 s_mdio_dr_n <= 0;
                 mdio_o <= 0;
-                mdio_o_en <= 0;
-                m_mdio_d <= m_mdio_d_i;
-                m_mdio_dv <= s_mdio_rd_i;
-            end else begin
-                bit_count <= bit_count - 1;
+                mdio_oe <= 0;
+            end
+            if ( s_mdio_rd_i && ( 0 == bit_count[5:4] )) begin
+                m_mdio_d_i <= {m_mdio_d_i[14:0], mdio_iii};
             end
         end
     end
-    if ( 2'b01 == mdio_clk_i ) begin // Rising edge MDC
-        if ( s_mdio_dr_n && s_mdio_rd_i && ( 0 == bit_count[5:4] )) begin
-            m_mdio_d_i <= {m_mdio_d_i[14:0], mdio_i};
-        end
+    if ( !s_mdio_dr_n && &bit_count ) begin // bit_count = 6'h3F
+        m_mdio_d <= m_mdio_d_i;
+        m_mdio_dv <= s_mdio_rd_i;
+        bit_count <= 0;
     end
     if ( !rst_n ) begin
         bit_count <= 0;
@@ -189,7 +197,7 @@ always @(posedge clk) begin : mdio_protocol
         s_mdio_rd_i <= 0;
         s_mdio_a_i <= 0;
         mdio_o <= 0;
-        mdio_o_en <= 0;
+        mdio_oe <= 0;
         m_mdio_d <= 0;
         m_mdio_dv <= 0;
     end
