@@ -164,7 +164,7 @@ always @(posedge clk) begin : mdio_protocol
         end
         if ( s_mdio_dr_n ) begin
             bit_count <= bit_count - 1;
-            if ( 2'b01 == bit_count[5:4] ) begin
+            if ( 2'b01 == bit_count[5:4] || ( 6'd32 == bit_count ) ) begin
                 mdio_o <= s_mdio_a_i[15];
                 s_mdio_a_i <= {s_mdio_a_i[14:0], 1'b0};
                 m_mdio_d_i <= 0;
