@@ -118,7 +118,7 @@ reg  [15:0] s_mdio_d_i = 0;
 reg  s_mdio_dr_n = 0;
 reg  s_mdio_rd_i = 0;
 reg  [15:0] m_mdio_d_i = 0;
-reg  [5:0] bit_count = 0;
+reg  [6:0] bit_count = 0;
 wire mdio_ii;
 wire mdio_iii;
 
@@ -146,6 +146,23 @@ always @(posedge clk) begin : mdio_protocol
 /*============================================================================*/
     mdio_clk_i <= {mdio_clk_i[0], mdio_clk};
     m_mdio_dv <= 0;
+    if ( 2'b01 == mdio_clk_i ) begin // Rising edge MDC
+        if ( s_mdio_dr_n ) begin
+            bit_count <= bit_count - 1;
+            if (( 3'b001 == bit_count[6:4] ) || ( 7'd32 == bit_count )) begin
+                mdio_o <= s_mdio_a_i[15];
+                s_mdio_a_i <= {s_mdio_a_i[14:0], 1'b0};
+                m_mdio_d_i <= 0;
+                if ( s_mdio_rd_i && ( 4'h2 == bit_count[3:0] )) begin
+                    mdio_oe <= 0; // Disable MDIO output
+                end
+            end
+            if (( 3'b000 == bit_count[6:4] ) || ( 7'd16 == bit_count )) begin
+                mdio_o <= s_mdio_d_i[15];
+                s_mdio_d_i <= {s_mdio_d_i[14:0], 1'b0};
+            end
+        end
+    end
     if ( 2'b10 == mdio_clk_i ) begin // Falling edge MDC
         if ( s_mdio_dv && !s_mdio_dr_n ) begin
             s_mdio_dr_n <= 1;
@@ -160,36 +177,20 @@ always @(posedge clk) begin : mdio_protocol
             s_mdio_rd_i <= s_mdio_rd;
             mdio_o <= 1;
             mdio_oe <= 1;
-            bit_count <= 6'd31 + PREAMBLE;
+            bit_count <= 7'd32 + PREAMBLE;
         end
         if ( s_mdio_dr_n ) begin
-            bit_count <= bit_count - 1;
-            if ( 2'b01 == bit_count[5:4] || ( 6'd32 == bit_count ) ) begin
-                mdio_o <= s_mdio_a_i[15];
-                s_mdio_a_i <= {s_mdio_a_i[14:0], 1'b0};
-                m_mdio_d_i <= 0;
-                if ( s_mdio_rd_i && ( 4'h2 == bit_count[3:0] )) begin
-                    mdio_oe <= 0; // Disable MDIO output
-                end
-            end
-            if (( 2'b00 == bit_count[5:4] ) || ( 6'd16 == bit_count )) begin
-                mdio_o <= s_mdio_d_i[15];
-                s_mdio_d_i <= {s_mdio_d_i[14:0], 1'b0};
-            end
-            if ( 0 == bit_count ) begin
+            if ( &bit_count ) begin // bit_count = 7'h7F
                 s_mdio_dr_n <= 0;
                 mdio_o <= 0;
                 mdio_oe <= 0;
-            end
-            if ( s_mdio_rd_i && ( 0 == bit_count[5:4] )) begin
+                m_mdio_d <= m_mdio_d_i;
+                m_mdio_dv <= s_mdio_rd_i;
+                bit_count <= 0;
+            end else if ( s_mdio_rd_i && ( 0 == bit_count[6:4] )) begin
                 m_mdio_d_i <= {m_mdio_d_i[14:0], mdio_iii};
             end
         end
-    end
-    if ( !s_mdio_dr_n && &bit_count ) begin // bit_count = 6'h3F
-        m_mdio_d <= m_mdio_d_i;
-        m_mdio_dv <= s_mdio_rd_i;
-        bit_count <= 0;
     end
     if ( !rst_n ) begin
         bit_count <= 0;
