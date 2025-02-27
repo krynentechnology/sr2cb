@@ -26,8 +26,8 @@
  *  WR:     0 1 0 1 bbbbb bbbbb 1 0 bbbb...bbbb
  *
  *  Supports parallel PHYs (each PHY has a separate MDC and MDIO line). Always
- *  one idle bit when no preamble is required. Data is sampled after falling
- *  edge for reading. Data is set before rising edge for writing. PHY MDC clock
+ *  one idle bit when no preamble is required. Data is sampled during falling
+ *  edge for reading. Data is set during rising edge for writing. PHY MDC clock
  *  has a maximum rate specified!
  *
  *  https://en.wikipedia.org/wiki/Management_Data_Input/Output
