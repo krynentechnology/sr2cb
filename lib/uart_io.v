@@ -103,8 +103,9 @@ localparam [7:0] XON = 8'h11;
 localparam [7:0] XOFF = 8'h13;
 localparam [7:0] SPACE = 8'h20;
 localparam PROMPT_SIZE = strlen( PROMPT );
+localparam TX_PROMPT_SIZE = strlen( PROMPT ) + 1; // +LF
 localparam RXFW = clog2( RX_FIFO );
-localparam TXCW = clog2(( RX_FIFO > PROMPT_SIZE ) ? RX_FIFO : PROMPT_SIZE );
+localparam TXCW = clog2(( RX_FIFO > TX_PROMPT_SIZE ) ? RX_FIFO : TX_PROMPT_SIZE );
 
 reg [7:0] fifo [0:RX_FIFO-1];
 reg [RXFW:0] rx_count = 0; // +1
@@ -118,19 +119,18 @@ reg tx_xon = 0;
 assign rx_fifo_nz = |rx_count;
 assign uart_io_tx_dr = uart_tx_dr & tx_xon & ~( tx_prompt | tx_space | tx_bs );
 
-reg [7:0] prompt [0:PROMPT_SIZE+1]; // +2 for XOFF, XON
+reg [7:0] prompt [0:TX_PROMPT_SIZE-1];
 
-reg [TXCW:0] i = 0;
+reg [TXCW:0] i;
 /*============================================================================*/
 initial begin : init_prompt
 /*============================================================================*/
-    prompt[0] = XOFF;
-    prompt[PROMPT_SIZE+1] = XON;
-    for ( i = PROMPT_SIZE; i > 0; i = i - 1 ) begin
+    prompt[0] = LF;
+    for ( i = 1; i < TX_PROMPT_SIZE; i = i + 1 ) begin
         prompt[i] = ( PROMPT >> (( PROMPT_SIZE - i ) * NR_BITS ));
     end
-//  for ( i = 0; i < ( PROMPT_SIZE + 2 ); i = i + 1 ) begin
-//      $display( "prompt[%0d] = %x", i, prompt[i]);
+//  for ( i = 0; i < TX_PROMPT_SIZE; i = i + 1 ) begin
+//      $display( "prompt[%0d] = %x, %d, %d ", i, prompt[i], PROMPT_SIZE, TX_PROMPT_SIZE );
 //  end
 end // init_prompt
 
@@ -158,11 +158,8 @@ always @(posedge clk) begin : uart_handler
             end
         end
         if ( CR == uart_rx_d ) begin
-            uart_tx_dv <= 1;
-        end
-        if ( LF == uart_rx_d ) begin
             rx_enable <= 1;
-            tx_prompt <= 1;
+            tx_prompt <= 1; // LF in included by prompt!
             tx_count <= 0;
             uart_tx_dv <= 1;
         end
@@ -191,7 +188,7 @@ always @(posedge clk) begin : uart_handler
         if ( tx_prompt ) begin
             uart_tx_d <= prompt[tx_count];
             uart_tx_dv <= 1;
-            if (( PROMPT_SIZE + 1 ) == tx_count ) begin // +2 for XOFF, XON
+            if (( TX_PROMPT_SIZE - 1 ) == tx_count ) begin
                 tx_prompt <= 0; // Stop TX prompt
             end else begin
                 tx_count <= tx_count + 1;
@@ -211,8 +208,8 @@ always @(posedge clk) begin : uart_handler
         if ( uart_io_tx_dr && uart_io_tx_dv ) begin
             uart_tx_d <= uart_io_tx_d;
             uart_tx_dv <= 1;
-            if ( LF == uart_io_tx_d ) begin
-                tx_prompt <= 1;
+            if ( CR == uart_io_tx_d ) begin
+                tx_prompt <= 1; // LF in included by prompt!
                 tx_count <= 0;
             end
         end
