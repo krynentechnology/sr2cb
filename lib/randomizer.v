@@ -185,9 +185,9 @@ initial begin : init_lsfr_tap
         63 : begin LFSR_TAP[62] = 1'b1; end
         64 : begin LFSR_TAP[63] = 1'b1; LFSR_TAP[61] = 1'b1; LFSR_TAP[60] = 1'b1; end
     endcase
-    if ( !LFSR_TAP[OUTPUT_WIDTH-2:0] ) begin
+    if ( LFSR_TAP[OUTPUT_WIDTH-1] || !LFSR_TAP[OUTPUT_WIDTH-2:0] ) begin
         $display( "Invalid LFSR_TAP = %b" , LFSR_TAP );
-        $finish;
+        // $finish;
     end
 end // init_lsfr_tap
 

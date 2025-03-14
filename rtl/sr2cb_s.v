@@ -187,8 +187,11 @@ wire ring_reset_cmd;
 localparam LFSR_TAP_WIDTH = 8;
 wire [LFSR_TAP_WIDTH-1:0] random_out;
 /*============================================================================*/
-randomizer random(
+randomizer #(
 /*============================================================================*/
+    .NR_CHANNELS( 1 ),
+    .OUTPUT_WIDTH( LFSR_TAP_WIDTH ))
+random (
     .clk(clk),
     .rndm_ch(1'b0),
     .rndm_seed(8'h0),
@@ -196,9 +199,6 @@ randomizer random(
     .rndm_out(random_out),
     .rndm_ready(1'b1)
 );
-
-defparam random.NR_CHANNELS = 1;
-defparam random.OUTPUT_WIDTH = LFSR_TAP_WIDTH;
 
 /*============================================================================*/
 initial begin : param_check // Parameter check

@@ -1,0 +1,163 @@
+############################################################
+#### ECP5 Versa Development Board
+############################################################
+COMMERCIAL ;
+BLOCK RESETPATHS ;
+BLOCK ASYNCPATHS ;
+BANK 0 VCCIO 1.5 V ;
+BANK 1 VCCIO 2.5 V ;
+BANK 2 VCCIO 2.5 V ;
+BANK 3 VCCIO 2.5 V ;
+BANK 6 VCCIO 2.5 V ;
+BANK 7 VCCIO 1.5 V ;
+SYSCONFIG BACKGROUND_RECONFIG=ON SLAVE_SPI_PORT=DISABLE CONFIG_MODE=JTAG CONFIG_SECURE=OFF TRANSFR=OFF MASTER_SPI_PORT=DISABLE SLAVE_PARALLEL_PORT=DISABLE ;
+############################################################
+# BOARD CLOCKS AND RESETS
+############################################################
+# 100Mhz LVDS clock
+LOCATE COMP "CLK" SITE "P3" ;
+LOCATE COMP "ARST_N" SITE "T1" ;
+############################################################
+# FREQUENCIES AND TIMING
+############################################################
+IOBUF PORT "CLK" IO_TYPE=LVDS DIFFRESISTOR=100 ;
+FREQUENCY NET "CLK" 100.000000 MHz ;
+############################################################
+# UART SIGNALS
+## WARNING: The ECP5 Versa Development Board has from factory
+## its FDTI FT2232H EEPROM not correctly configured for UART
+## use. Reconfigure EEPROM by FT_PROG utility from FDTI -
+## "Scan and parse". Set "Hardware Specific" - port B to UART
+## and VCP (Virtual COM Port) and reprogram FT2232H EEPROM.
+############################################################
+LOCATE COMP "UART_RX" SITE "C11" ; # from FT2232H chip
+LOCATE COMP "UART_TX" SITE "A11" ; # to FT2232H chip
+IOBUF PORT "UART_RX" IO_TYPE=LVCMOS15 ;
+IOBUF PORT "UART_TX" IO_TYPE=LVCMOS15 ;
+############################################################
+# ETHERNET SIGNALS
+############################################################
+// 125 MHz
+LOCATE COMP "PHY1_RGMII_RXCLK" SITE "L20" ;
+LOCATE COMP "PHY1_RGMII_RXCTL" SITE "U19" ;
+LOCATE COMP "PHY1_RGMII_RXD[3]" SITE "R18" ;
+LOCATE COMP "PHY1_RGMII_RXD[2]" SITE "T19" ;
+LOCATE COMP "PHY1_RGMII_RXD[1]" SITE "U20" ;
+LOCATE COMP "PHY1_RGMII_RXD[0]" SITE "T20" ;
+LOCATE COMP "PHY1_RST_N" SITE "U17" ;
+LOCATE COMP "PHY1_RGMII_TXCTL" SITE "R20" ;
+LOCATE COMP "PHY1_RGMII_TXD[3]" SITE "P20" ;
+LOCATE COMP "PHY1_RGMII_TXD[2]" SITE "P18" ;
+LOCATE COMP "PHY1_RGMII_TXCLK" SITE "P19" ;
+LOCATE COMP "PHY1_RGMII_TXD[1]" SITE "N20" ;
+LOCATE COMP "PHY1_RGMII_TXD[0]" SITE "N19" ;
+LOCATE COMP "PHY1_MDC" SITE "T18" ;
+LOCATE COMP "PHY1_MDIO" SITE "U18" ;
+LOCATE COMP "PHY1_CONFIG" SITE "T17" ;
+LOCATE COMP "PHY2_RGMII_RXCLK" SITE "J19" ;
+LOCATE COMP "PHY2_RGMII_RXCTL" SITE "F19" ;
+LOCATE COMP "PHY2_RGMII_RXD[3]" SITE "H17" ;
+LOCATE COMP "PHY2_RGMII_RXD[2]" SITE "H18" ;
+LOCATE COMP "PHY2_RGMII_RXD[1]" SITE "G16" ;
+LOCATE COMP "PHY2_RGMII_RXD[0]" SITE "G18" ;
+LOCATE COMP "PHY2_RST_N" SITE "F20" ;
+LOCATE COMP "PHY2_RGMII_TXCLK" SITE "C20" ;
+LOCATE COMP "PHY2_RGMII_TXCTL" SITE "E19" ;
+LOCATE COMP "PHY2_RGMII_TXD[3]" SITE "D20" ;
+LOCATE COMP "PHY2_RGMII_TXD[2]" SITE "D19" ;
+LOCATE COMP "PHY2_RGMII_TXD[1]" SITE "J16" ;
+LOCATE COMP "PHY2_RGMII_TXD[0]" SITE "J17" ;
+LOCATE COMP "PHY2_MDC" SITE "G19" ;
+LOCATE COMP "PHY2_MDIO" SITE "H20" ;
+LOCATE COMP "PHY2_CONFIG" SITE "G20" ;
+############################################################
+# LED GPIO SIGNALS from top (buttons) to bottom (PCIe).
+## WARNING: Lattice Diamond generates error for LED[7:0]
+## when IO_TYPE=LVCMOS33, IO_TYPE=LVCMOS25 expected!
+## WARNING: Yosys nextpnr-ecp5 generates error for LED[7:0]
+## when IO_TYPE=LVCMOS25, IO_TYPE=LVCMOS33 expected!
+############################################################
+LOCATE COMP "LED[7]" SITE "F16" ; # red D29
+LOCATE COMP "LED[6]" SITE "E17" ; # red D28
+LOCATE COMP "LED[5]" SITE "F18" ; # red D27
+LOCATE COMP "LED[4]" SITE "F17" ; # red D26
+LOCATE COMP "LED[3]" SITE "E18" ; # green D21
+LOCATE COMP "LED[2]" SITE "D18" ; # green D22
+LOCATE COMP "LED[1]" SITE "D17" ; # yellow D24
+LOCATE COMP "LED[0]" SITE "E16" ; # yellow D25
+IOBUF PORT "LED[7]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[6]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[5]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[4]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[3]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[2]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[1]" IO_TYPE=LVCMOS33 ;
+IOBUF PORT "LED[0]" IO_TYPE=LVCMOS33 ;
+############################################################
+# 14 Segment LED GPIO SIGNALS
+## WARNING: Lattice Diamond generates error for SEG[13:0]
+## when IO_TYPE=LVCMOS33, IO_TYPE=LVCMOS25 expected!
+## WARNING: Yosys nextpnr-ecp5 generates error for SEG[13:0]
+## when IO_TYPE=LVCMOS25, IO_TYPE=LVCMOS33 expected!
+############################################################
+LOCATE COMP "SEG[0]" SITE "M20" ;
+LOCATE COMP "SEG[1]" SITE "L18" ;
+LOCATE COMP "SEG[2]" SITE "M19" ;
+LOCATE COMP "SEG[3]" SITE "L16" ;
+LOCATE COMP "SEG[4]" SITE "L17" ;
+LOCATE COMP "SEG[5]" SITE "M18" ;
+LOCATE COMP "SEG[6]" SITE "N16" ;
+LOCATE COMP "SEG[7]" SITE "M17" ;
+LOCATE COMP "SEG[8]" SITE "N18" ;
+LOCATE COMP "SEG[9]" SITE "P17" ;
+LOCATE COMP "SEG[10]" SITE "N17" ;
+LOCATE COMP "SEG[11]" SITE "P16" ;
+LOCATE COMP "SEG[12]" SITE "R16" ;
+LOCATE COMP "SEG[13]" SITE "R17" ;
+LOCATE COMP "DP" SITE "U1" ;
+IOBUF PORT "DP" IO_TYPE=LVCMOS25 PULLMODE=NONE OPENDRAIN=OFF CLAMP=ON DRIVE=8 ;
+IOBUF PORT "SEG[0]" IO_TYPE=LVCMOS33 ; # a
+IOBUF PORT "SEG[1]" IO_TYPE=LVCMOS33 ; # b
+IOBUF PORT "SEG[2]" IO_TYPE=LVCMOS33 ; # c
+IOBUF PORT "SEG[3]" IO_TYPE=LVCMOS33 ; # d
+IOBUF PORT "SEG[4]" IO_TYPE=LVCMOS33 ; # e
+IOBUF PORT "SEG[5]" IO_TYPE=LVCMOS33 ; # f
+IOBUF PORT "SEG[6]" IO_TYPE=LVCMOS33 ; # g
+IOBUF PORT "SEG[7]" IO_TYPE=LVCMOS33 ; # h
+IOBUF PORT "SEG[8]" IO_TYPE=LVCMOS33 ; # j
+IOBUF PORT "SEG[9]" IO_TYPE=LVCMOS33 ; # k
+IOBUF PORT "SEG[10]" IO_TYPE=LVCMOS33 ; # l
+IOBUF PORT "SEG[11]" IO_TYPE=LVCMOS33 ; # m
+IOBUF PORT "SEG[12]" IO_TYPE=LVCMOS33 ; # n
+IOBUF PORT "SEG[13]" IO_TYPE=LVCMOS33 ; # p
+############################################################
+# DIP Switch (8 switches)
+############################################################
+LOCATE COMP "DIP_SW[7]" SITE "K20" ;
+LOCATE COMP "DIP_SW[6]" SITE "K19" ;
+LOCATE COMP "DIP_SW[5]" SITE "K18" ;
+LOCATE COMP "DIP_SW[4]" SITE "J18" ;
+LOCATE COMP "DIP_SW[3]" SITE "F2" ;
+LOCATE COMP "DIP_SW[2]" SITE "G3" ;
+LOCATE COMP "DIP_SW[1]" SITE "K3" ;
+LOCATE COMP "DIP_SW[0]" SITE "H2" ;
+IOBUF PORT "DIP_SW[7]" IO_TYPE=LVCMOS25 ;
+IOBUF PORT "DIP_SW[6]" IO_TYPE=LVCMOS25 ;
+IOBUF PORT "DIP_SW[5]" IO_TYPE=LVCMOS25 ;
+IOBUF PORT "DIP_SW[4]" IO_TYPE=LVCMOS25 ;
+IOBUF PORT "DIP_SW[3]" IO_TYPE=LVCMOS15 ;
+IOBUF PORT "DIP_SW[2]" IO_TYPE=LVCMOS15 ;
+IOBUF PORT "DIP_SW[1]" IO_TYPE=LVCMOS25 ;
+IOBUF PORT "DIP_SW[0]" IO_TYPE=LVCMOS25 ;
+###########################################################
+#  TEST POINTS
+#  (not used)
+# These are assinged to the expansion connector pins
+############################################################
+############################################################
+# IO BUFFER PREFERENCES
+############################################################
+#----- Default ------
+#IOBUF ALLPORTS IO_TYPE=LVCMOS25 ;
+#----- Override ------
+

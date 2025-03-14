@@ -1,0 +1,9 @@
+..\lib\phy_100Mb.v
+..\lib\phy_mdio.v
+..\lib\uart.v
+..\lib\uart_io.v
+..\lib\randomizer.v
+..\rtl\sr2cb_m.v
+..\rtl\sr2cb_m_phy_pre.v
+..\rtl\sr2cb_s.v
+ecp5_sr2cb.v
