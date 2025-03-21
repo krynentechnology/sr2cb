@@ -18,6 +18,19 @@
  *
  *  Description: SR2CB (master) protocol HW setup for Cyclone 10 LP Evaluation
  *               Kit
+ *
+ *  100Mbs (fast ethernet) RJ-45 loopback plug - connect pin 1 (TX+) to 3 (RX+)
+ *  and pin 2 (TX-) to 6 (RX-)
+ *
+ *  C10LP>002100 // Write PHY 00h to force 100Mb full duplex and put 100Mbs
+ *               // loopback plug in RJ-45 connector - 100Mbs and linkup LED
+ *               // should light
+ *  C10LP>17     // Read PHY 17h, should be 0xB000 otherwise write this value
+ *  C10LP>B000   // RXCLK is active also when link is down (!), copper data
+ *               // flow, RGMII mode
+ *  C10LP>18     // Read PHY 18h
+ *  C10LP>0009   // Full duplex, 100Mbs
+ *  C10LP>401    // Link up
  */
 
 `resetall
@@ -207,7 +220,7 @@ phy_gpy111 (
     .phy_rgmii_rx_ctrl(PHY_RX_CTRL),
     .phy_mii_rx_dv(),
     .phy_mii_rx_er(),
-    .phy_mii_tx_clk(),
+    .phy_mii_tx_clk(PHY_RX_CLK),
     .phy_rmii_clk(),
     .phy_rgmii_tx_clk(PHY_TX_CLK),
     .phy_txd(PHY_TXD),
@@ -223,8 +236,8 @@ wire [7:0] tx0_d;
 wire tx0_dv;
 wire tx0_dr;
 reg  [7:0] tx_u_d = 0;
-reg  tx_u_dv = 0;
-reg  tx_u_dv_i = 0;
+reg  tx0u_dv = 0;
+reg  tx0u_dv_i = 0;
 
 /*============================================================================*/
 sr2cb_m_phy_pre phy_pre(
@@ -232,7 +245,7 @@ sr2cb_m_phy_pre phy_pre(
     .clk(tx0_clk),
     .rst_n(rst_n),
     .rx_d(tx0_dv ? tx0_d : tx_u_d),
-    .rx_dv(tx0_dv | tx_u_dv),
+    .rx_dv(tx0_dv | tx0u_dv),
     .rx_dr(tx0_dr),
     .tx_d(tx_d),
     .tx_dv(tx_dv)
@@ -385,6 +398,7 @@ reg [7:0] u_rxd_cmd = 0;
 reg [15:0] u_rxd_param = 0;
 reg [15:0] u_txd = 0;
 reg [2:0] u_tx_count = 0;
+reg u_rx_end = 0;
 reg u_tx_enable = 0;
 
 wire u_rxd_0_9;
@@ -417,6 +431,9 @@ localparam [7:0] LF = 8'h0A;
 /*============================================================================*/
 always @(posedge clk) begin : uart_cmd
 /*============================================================================*/
+    s_mdio_dv <= s_mdio_dv & s_mdio_dr;
+    tx0u_dv_i <= tx0u_dv_i & ~( tx0u_dv & tx0u_dv_i );
+    u_rx_end <= 0;
     if ( uart_io_rx_dv && uart_io_rx_dr ) begin
         if ( u_rxd_0_9 || u_rxd_a_f || u_rxd_A_F ) begin
             if ( 0 == u_rx_count ) begin
@@ -439,46 +456,41 @@ always @(posedge clk) begin : uart_cmd
             end
             u_rx_count <= u_rx_count + 1;
         end
+        u_rx_end <= ~uart_rx_fifo_nz;
     end
-    s_mdio_dv <= s_mdio_dv & s_mdio_dr;
-    tx_u_dv_i <= tx_u_dv_i & ~( tx_u_dv & tx_u_dv_i );
-    if ( !uart_rx_fifo_nz && s_mdio_dr ) begin
+    if ( u_rx_end && s_mdio_dr ) begin
         case ( u_rxd_cmd[7:5] )
         3'b000 : begin // MDIO registers 0x00-0x1F
             if ( 2 == u_rx_count ) begin
                 s_mdio_rd <= 1; // Read MDIO
                 s_mdio_ra <= u_rxd_cmd[4:0];
                 s_mdio_dv <= 1;
-                u_rx_count <= 0;
             end
             if ( 6 == u_rx_count ) begin
                 s_mdio_rd <= 0; // Write MDIO
                 s_mdio_ra <= u_rxd_cmd[4:0];
                 s_mdio_d <= u_rxd_param;
                 s_mdio_dv <= 1;
-                u_rx_count <= 0;
             end
         end
         3'b001 : begin // PHY RX/TX
             if ( 2 == u_rx_count ) begin
                 u_txd <= {rx_error, 7'd0, rx_data};
                 u_tx_enable <= 1;
-                u_tx_count <= 0;
-                u_rx_count <= 0;
             end
             if ( 4 == u_rx_count ) begin
-                tx_u_dv_i <= 1;
+                tx0u_dv_i <= 1;
                 tx_u_d <= u_rxd_param[15:8];
-                u_rx_count <= 0;
             end
         end
         3'b010 : begin // PHY link up
             if ( 3 == u_rx_count ) begin
-                link_up <= u_rxd_param[8];
-                u_rx_count <= 0;
+                link_up <= u_rxd_param[12];
             end
         end
         endcase
+        u_rx_count <= 0;
+        u_tx_count <= 0;
     end
     uart_io_tx_dv <= 0;
     if ( u_tx_enable ) begin
@@ -503,7 +515,7 @@ always @(posedge clk) begin : uart_cmd
         s_mdio_rd <= 0;
         s_mdio_dv <= 0;
         u_tx_enable <= 0;
-        tx_u_dv_i <= 0;
+        tx0u_dv_i <= 0;
     end
 end // uart_cmd
 
@@ -519,7 +531,7 @@ end
 /*============================================================================*/
 always @(posedge tx0_clk) begin : phy_tx_process
 /*============================================================================*/
-    tx_u_dv <= tx_u_dv_i;
+    tx0u_dv <= tx0u_dv_i;
 end
 
 endmodule // c10lp_sr2cb_m

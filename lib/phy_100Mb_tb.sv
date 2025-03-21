@@ -66,7 +66,7 @@ phy1 (
     .phy_rgmii_rx_ctrl(phy1_rgmii_rx_ctrl),
     .phy_mii_rx_dv(),
     .phy_mii_rx_er(),
-    .phy_mii_tx_clk(),
+    .phy_mii_tx_clk(phy1_rx_clk),
     .phy_rmii_clk(),
     .phy_rgmii_tx_clk(phy1_rgmii_tx_clk),
     .phy_txd(phy1_txd),

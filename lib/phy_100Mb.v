@@ -17,7 +17,7 @@
  *  License: LGPL, v3, as defined and found on www.gnu.org,
  *           https://www.gnu.org/licenses/lgpl-3.0.html
  *
- *  Description: PHY 100Mb interface RGMII, MII and RMII
+ *  Description: PHY 100Mbs interface RGMII, MII and RMII
  *
  *  https://en.wikipedia.org/wiki/Media-independent_interface
  */
@@ -32,11 +32,11 @@ module phy_100Mb #(
     parameter CFG_MODE = "RMII" ) // Or "MII", "RGMII"
     (
     input  wire clk, // Should be 100MHz for RMII!
-    output wire rx_clk, // RX clock
+    output reg  rx_clk = 0, // RX clock
     output reg  [7:0] rx_d = 0, // Byte read data
     output reg  rx_dv = 0, // Read data valid
     output reg  rx_er = 0, // Read error
-    output wire tx_clk, // TX clock
+    output reg  tx_clk = 0, // TX clock
     input  wire [7:0] tx_d, // Byte write data
     input  wire tx_dv,// Write data valid,
     // PHY interface
@@ -45,7 +45,7 @@ module phy_100Mb #(
     input  wire phy_rgmii_rx_ctrl,
     input  wire phy_mii_rx_dv,
     input  wire phy_mii_rx_er,
-    input  wire phy_mii_tx_clk,
+    input  wire phy_mii_tx_clk, // Also input TX clock for RGMII in MII mode
     output wire phy_rmii_clk, // RMII 50MHz reference clock!
     output wire phy_rgmii_tx_clk,
     output reg  [3:0] phy_txd = 0,
@@ -57,7 +57,7 @@ module phy_100Mb #(
 initial begin : parameter_check
 /*============================================================================*/
     if ( CFG_MODE != "RGMII" && CFG_MODE != "MII" && CFG_MODE != "RMII" ) begin
-        $display( "Select one of the PHY 100Mb interface modes!" );
+        $display( "Select one of the PHY 100Mbs interface modes!" );
         $finish;
     end
 end // parameter_check
@@ -65,28 +65,20 @@ end // parameter_check
 generate
 if ( "RGMII" == CFG_MODE ) begin
 
-reg rx_clk_i = 0;
-assign rx_clk = rx_clk_i;
-reg [1:0] rx_clk_ii = 0;
-
-/*============================================================================*/
-always @(posedge phy_rx_clk) begin : rx_clock_out
-/*============================================================================*/
-    rx_clk_i <= ~rx_clk_i;
-end
-
 reg [3:0] rx_d_i = 0;
 reg rx_dv_i = 0;
 reg [3:0] tx_d_i = 0;
 reg tx_dv_i = 0;
 reg tx_dv_ii = 0;
 
-assign tx_clk = rx_clk_i;
-assign phy_rgmii_tx_clk = phy_rx_clk;
+// Connect extern phy_rx_clk also to phy_mii_tx_clk input when there is no
+// separate TX clock for the PHY interface!
+assign phy_rgmii_tx_clk = phy_mii_tx_clk;
 
 /*============================================================================*/
 always @(negedge phy_rx_clk) begin : rgmii_mii_rx // RGMII in MII mode
 /*============================================================================*/
+    rx_clk <= ~rx_clk; // RX clock out
     rx_er <= ~phy_rgmii_rx_ctrl;
     rx_dv_i <= 0;
     if ( phy_rgmii_rx_ctrl ) begin
@@ -105,8 +97,9 @@ always @(negedge phy_rx_clk) begin : rgmii_mii_rx // RGMII in MII mode
 end // rgmii_mii_rx
 
 /*============================================================================*/
-always @(posedge phy_rx_clk) begin : rgmii_mii_tx // RGMII in MII mode
+always @(posedge phy_mii_tx_clk) begin : rgmii_mii_tx // RGMII in MII mode
 /*============================================================================*/
+    tx_clk <= ~tx_clk; // TX clock out
     tx_dv_i <= 0;
     tx_dv_ii <= 0;
     phy_txd <= 4'hF; // Carrier extend
@@ -129,20 +122,12 @@ end // rgmii_mii_tx
 
 end else if ( "MII" == CFG_MODE ) begin
 
-reg rx_clk_i = 0;
-assign rx_clk = rx_clk_i;
-
-/*============================================================================*/
-always @(posedge phy_rx_clk) begin : rx_clock_out
-/*============================================================================*/
-    rx_clk_i <= ~rx_clk_i;
-end
-
 reg [3:0] rx_d_i = 0;
 reg rx_dv_i = 0;
 /*============================================================================*/
 always @(negedge phy_rx_clk) begin : mii_rx
 /*============================================================================*/
+    rx_clk <= ~rx_clk; // RX clock out
     rx_er <= phy_mii_rx_er;
     rx_dv_i <= 0;
     if ( phy_mii_rx_dv ) begin
@@ -160,8 +145,6 @@ always @(negedge phy_rx_clk) begin : mii_rx
     end
 end // mii_rx
 
-reg tx_clk_i = 0;
-assign tx_clk = tx_clk_i;
 reg [3:0] tx_d_i = 0;
 reg tx_dv_i = 0;
 reg tx_dv_ii = 0;
@@ -169,7 +152,7 @@ reg tx_dv_ii = 0;
 /*============================================================================*/
 always @(posedge phy_mii_tx_clk) begin : mii_tx // Plus TX clock out
 /*============================================================================*/
-    tx_clk_i <= ~tx_clk_i;
+    tx_clk <= ~tx_clk; // TX clock out
     tx_dv_i <= 0;
     tx_dv_ii <= 0;
     phy_txd <= 4'hF; // Carrier extend
@@ -202,10 +185,6 @@ always @(posedge clk) begin : rmii_clk_50Mhz
 end // rmii_clk_50Mhz
 
 reg rmii_clk_i = 0;
-reg rmii_clk_ii = 0;
-assign rx_clk = rmii_clk_ii;
-assign tx_clk = rmii_clk_ii;
-
 reg [5:0] rx_d_i = 0;
 reg rx_dv_i = 0;
 reg rx_dv_ii = 0;
@@ -281,10 +260,11 @@ always @(posedge rmii_clk) begin : rmii_tx
 end // rmii_tx
 
 /*============================================================================*/
-always @(posedge rmii_clk_i) begin : rx_tx_clk
+always @(posedge rmii_clk_i) begin : rx_tx_clk // 12.5 Mhz
 /*============================================================================*/
-    rmii_clk_ii <= ~rmii_clk_ii; // 12.5Mhz
-end
+    rx_clk <= ~rx_clk; // RX clock out
+    tx_clk <= ~tx_clk; // TX clock out
+end // rx_tx_clk
 
 end // if ( "RMII" == CFG_MODE )
 endgenerate
