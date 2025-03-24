@@ -18,6 +18,24 @@
  *
  *  Description: SR2CB protocol HW setup for Lattice Semiconductor ECP5 Versa
  *               Development Board
+ *
+ *  The ECP5 Versa Development Board has two 1Gbs PHYs. One is connected to the
+ *  SR2CB master RX0/TX0 ring interface and the other to SR2CB slave 0 RX0/TX0
+ *  ring interface. The ECP5 board PHYs are forced to 100Mbs, full duplex by
+ *  terminal commands. The PHYs are externally connected with a cross-wired
+ *  RJ-45 cable. Terminal commands:
+ *
+ *    ECP5>00A100 // Write PHY1 reg 0 (0x00) to force 100Mb full duplex
+ *    ECP5>20A100 // Write PHY2 reg 0 (0x20) to force 100Mb full duplex
+ *    ECP5>100400 // Write PHY1 reg 16 (0x10) to force link good
+ *    ECP5>300400 // Write PHY2 reg 16 (0x30) to force link good
+ *    ECP5>11     // Read PHY1 reg 17 (0x11)
+ *    ECP5>6C08   // 100Mbps, full duplex, auto-negotiation resolved and
+ *                // (copper) link-up
+ *    ECP5>31     // Read PHY2 reg 17 (0x31)
+ *    ECP5>6C08   // 100Mbps, full duplex, auto-negotiation resolved and
+ *                // (copper) link-up
+ *    ECP5>803    // Force ring R0/R1 link up
  */
 
 `resetall
@@ -96,9 +114,6 @@ localparam NR_BITS = 8;
 wire clk;
 wire rst_n;
 assign clk = CLK;
-
-assign LED[7:0] = 8'hFF; // 1 = off
-assign SEG[13:0] = 14'h3FFF; // 1 = 0ff
 
 wire [7:0] uart_rx_d;
 wire uart_rx_dv;
@@ -196,36 +211,37 @@ mdio_gpy111 (
     .mdio_oe()
     );
 
-wire rx1_clk;
+wire phy1_rx_clk;
 wire [7:0] phy1_rx_d;
 reg  [7:0] rx1_data = 0;
 wire phy1_rx_dv;
 wire rx1_er;
 reg rx1_error = 0;
-wire tx1_clk;
-wire [7:0] phy1_pre_d;
-wire phy1_pre_dv;
+wire phy1_tx_clk;
+reg  [7:0] phy1_tx_d = 0;
+reg  phy1_tx_dv = 0;
 reg  [7:0] tx1_d = 0;
 reg  tx1_dv = 0;
 reg  tx1_dv_i = 0;
+wire link_up;
 
 phy_100Mb #(
     .CFG_MODE( "RGMII" ))
 phy1 (
     .clk(clk),
-    .rx_clk(rx1_clk),
+    .rx_clk(phy1_rx_clk),
     .rx_d(phy1_rx_d),
     .rx_dv(phy1_rx_dv),
     .rx_er(rx1_er),
-    .tx_clk(tx1_clk),
-    .tx_d(phy1_pre_d),
-    .tx_dv(phy1_pre_dv),
+    .tx_clk(phy1_tx_clk),
+    .tx_d(phy1_tx_d),
+    .tx_dv(phy1_tx_dv),
     .phy_rx_clk(PHY1_RGMII_RXCLK),
     .phy_rxd(PHY1_RGMII_RXD),
     .phy_rgmii_rx_ctrl(PHY1_RGMII_RXCTL),
     .phy_mii_rx_dv(),
     .phy_mii_rx_er(),
-    .phy_mii_tx_clk(),
+    .phy_mii_tx_clk(PHY1_RGMII_RXCLK), // TXCLK = RXCLK
     .phy_rmii_clk(),
     .phy_rgmii_tx_clk(PHY1_RGMII_TXCLK),
     .phy_txd(PHY1_RGMII_TXD),
@@ -238,36 +254,33 @@ assign PHY1_MDC = mdc[0];
 assign PHY1_MDIO = mdio[0];
 assign PHY1_CONFIG = 0;
 
-wire rx2_clk;
+wire phy2_rx_clk;
 wire [7:0] phy2_rx_d;
 reg  [7:0] rx2_data = 0;
 wire phy2_rx_dv;
 wire rx2_er;
 reg rx2_error = 0;
-wire tx2_clk;
-reg  [7:0] tx2_d = 0;
-reg  tx2_dv = 0;
-reg  tx2_dv_i = 0;
-wire [7:0] tx0s0_d;
-wire tx0s0_dv;
+wire phy2_tx_clk;
+reg  [7:0] phy2_tx_d = 0;
+reg  phy2_tx_dv = 0;
 
 phy_100Mb #(
     .CFG_MODE( "RGMII" ))
 phy2 (
     .clk(clk),
-    .rx_clk(rx2_clk),
+    .rx_clk(phy2_rx_clk),
     .rx_d(phy2_rx_d),
     .rx_dv(phy2_rx_dv),
     .rx_er(rx2_er),
-    .tx_clk(tx2_clk),
-    .tx_d(tx0s0_d),
-    .tx_dv(tx0s0_dv),
+    .tx_clk(phy2_tx_clk),
+    .tx_d(phy2_tx_d),
+    .tx_dv(phy2_tx_dv),
     .phy_rx_clk(PHY2_RGMII_RXCLK),
     .phy_rxd(PHY2_RGMII_RXD),
     .phy_rgmii_rx_ctrl(PHY2_RGMII_RXCTL),
     .phy_mii_rx_dv(),
     .phy_mii_rx_er(),
-    .phy_mii_tx_clk(),
+    .phy_mii_tx_clk(PHY2_RGMII_RXCLK), // TXCLK = RXCLK
     .phy_rmii_clk(),
     .phy_rgmii_tx_clk(PHY2_RGMII_TXCLK),
     .phy_txd(PHY2_RGMII_TXD),
@@ -286,14 +299,17 @@ wire rx1_loopback;
 wire [7:0] tx0m_d;
 wire  tx0m_dv;
 wire phy1_pre_dr;
+wire [7:0] phy1_pre_d;
+wire phy1_pre_dv;
 reg  [7:0] tx0u_d = 0;
 reg  tx0u_dv = 0;
 reg  tx0u_dv_i = 0;
+wire tx0m_clk;
 
 /*============================================================================*/
 sr2cb_m_phy_pre phy1_pre(
 /*============================================================================*/
-    .clk(tx1_clk),
+    .clk(tx0m_clk),
     .rst_n(rst_n),
     .rx_d(tx0m_dv ? tx0m_d : tx0u_d),
     .rx_dv(rx0_loopback ? 1'b0 : (tx0m_dv | tx0u_dv)), // RX0 loopback
@@ -310,11 +326,12 @@ reg  tx1u_dv = 0;
 reg  tx1u_dv_i = 0;
 wire [7:0] phy2_pre_d;
 wire phy2_pre_dv;
+wire tx1m_clk;
 
 /*============================================================================*/
 sr2cb_m_phy_pre phy2_pre(
 /*============================================================================*/
-    .clk(tx2_clk),
+    .clk(tx1m_clk),
     .rst_n(rst_n),
     .rx_d(tx1m_dv ? tx1m_d : tx1u_d),
     .rx_dv(rx1_loopback ? 1'b0 : (tx1m_dv | tx1u_dv)), // RX1 loopback
@@ -326,15 +343,15 @@ sr2cb_m_phy_pre phy2_pre(
 /*---------------------------*/
 reg  rx0tx0_link = 0;
 wire tx0m_err;
-wire tx0m_clk;
 reg  rx1tx1_link = 0;
 wire tx1m_err;
-wire tx1m_clk;
 reg  [7:0] rx0m_ch_d = 0;
 reg  rx0m_ch_dv = 0;
 wire rx0m_ch_dr;
 wire [7:0] tx0m_ch_d;
 wire [CHW-1:0] rx0m_tx0_ch;
+reg  [7:0] rx1m_d = 0;
+reg  rx1m_dv = 0;
 reg  [7:0] rx1m_ch_d = 0;
 reg  rx1m_ch_dv = 0;
 wire rx1m_ch_dr;
@@ -356,13 +373,16 @@ wire [2:0] tx1m_status;
 reg  [12:0] tx1m_c_s = 0;
 wire ring_reset_pending;
 wire [63:0] clk_m_count;
+wire [1:0] dv_m_en;
 /*---------------------------*/
+wire rx0s_clk[0:NR_SR2CB_SLAVE_NODES-1];
 wire [7:0] rx0s_d[0:NR_SR2CB_SLAVE_NODES-1];
 wire rx0s_dv[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx0s_clk[0:NR_SR2CB_SLAVE_NODES-1];
 wire [7:0] tx0s_d[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx0s_dv[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx0s_err[0:NR_SR2CB_SLAVE_NODES-1];
+wire rx1s_clk[0:NR_SR2CB_SLAVE_NODES-1];
 wire [7:0] rx1s_d[0:NR_SR2CB_SLAVE_NODES-1];
 wire rx1s_dv[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx1s_clk[0:NR_SR2CB_SLAVE_NODES-1];
@@ -391,6 +411,8 @@ wire [2:0] rx1s_status[0:NR_SR2CB_SLAVE_NODES-1];
 wire [27:0] rx1s_delay[0:NR_SR2CB_SLAVE_NODES-1];
 wire [67:0] rx1s_rt_clk_count[0:NR_SR2CB_SLAVE_NODES-1];
 wire rx1_clk_adjust_fast[0:NR_SR2CB_SLAVE_NODES-1];
+wire [3:0] clk_s_en[0:NR_SR2CB_SLAVE_NODES-1];
+wire [3:0] dv_s_en[0:NR_SR2CB_SLAVE_NODES-1];
 
 integer k = 0;
 /*============================================================================*/
@@ -404,12 +426,10 @@ initial begin
     end
 end
 
-assign tx0s0_d = tx0s_d[0];
-assign tx0s0_dv = tx0s_dv[0];
-wire [7:0] tx1s0_d;
-assign tx1s0_d = tx1s_d[NR_SR2CB_SLAVE_NODES-1];
-wire tx1s0_dv;
-assign tx1s0_dv = tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
+assign link_up = rx0tx0_link | rx1tx1_link;
+
+wire tx1s0r1_clk;
+assign tx1s0r1_clk = tx1s_clk[NR_SR2CB_SLAVE_NODES-1];
 
 /*============================================================================*/
 sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
@@ -418,9 +438,9 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .rst_n(rst_n),
     .rx0tx0_link(rx0tx0_link), // Link up status set by terminal console
     .rx0_loopback(rx0_loopback),
-    .rx0_clk(rx1_clk),
-    .rx0_d(tx0s0_d),
-    .rx0_dv(tx0s0_dv),
+    .rx0_clk(phy1_rx_clk),
+    .rx0_d(phy1_rx_d),
+    .rx0_dv(phy1_rx_dv & link_up),
     .rx0_err(1'b0),
     .tx0_clk(tx0m_clk),
     .tx0_d(tx0m_d),
@@ -429,9 +449,9 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .tx0_err(tx0m_err),
     .rx1tx1_link(rx1tx1_link), // Link up status set by terminal console
     .rx1_loopback(rx1_loopback),
-    .rx1_clk(rx2_clk),
-    .rx1_d(tx1s0_d),
-    .rx1_dv(tx1s0_dv),
+    .rx1_clk(phy2_rx_clk), // tx1s0r1_clk not active at atart!
+    .rx1_d(rx1m_d),
+    .rx1_dv(rx1m_dv),
     .rx1_err(1'b0),
     .tx1_clk(tx1m_clk),
     .tx1_d(tx1m_d),
@@ -463,7 +483,8 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .tx1_status(tx1m_status),
     .tx1_c_s(tx1m_c_s),
     .ring_reset_pending(ring_reset_pending),
-    .clk_count(clk_m_count)
+    .clk_count(clk_m_count),
+    .dv_en(dv_m_en)
 );
 
 /*=============================================================================/
@@ -488,15 +509,19 @@ assign tx1mp_dv = rx1_loopback ? tx1m_dv : phy2_pre_dv;
 
 genvar a;
 generate
+    assign rx0s_clk[0] = phy2_rx_clk;
     assign rx0s_d[0] = phy2_rx_d;
-    assign rx0s_dv[0] = phy2_rx_dv;
-    assign rx1s_d[NR_SR2CB_SLAVE_NODES-1] = tx1mp_d;
-    assign rx1s_dv[NR_SR2CB_SLAVE_NODES-1] = tx1mp_dv;
+    assign rx0s_dv[0] = phy2_rx_dv & link_up;
     for ( a = 1; a < NR_SR2CB_SLAVE_NODES; a = a + 1 ) begin
+        assign rx0s_clk[a] = tx1s_clk[a-1];
         assign rx0s_d[a] = tx1s_d[a-1];
         assign rx0s_dv[a] = tx1s_dv[a-1];
     end
+    assign rx1s_clk[NR_SR2CB_SLAVE_NODES-1] = tx1m_clk;
+    assign rx1s_d[NR_SR2CB_SLAVE_NODES-1] = tx1mp_d;
+    assign rx1s_dv[NR_SR2CB_SLAVE_NODES-1] = tx1mp_dv;
     for ( a = 0; a < ( NR_SR2CB_SLAVE_NODES - 1 ); a = a + 1 ) begin
+        assign rx1s_clk[a] = tx0s_clk[a+1];
         assign rx1s_d[a] = tx0s_d[a+1];
         assign rx1s_dv[a] = tx0s_dv[a+1];
     end
@@ -510,7 +535,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
 /*============================================================================*/
     .clk(clk),
     .rst_n(rst_n),
-    .rx0_clk(rx1_clk),
+    .rx0_clk(rx0s_clk[b]),
     .rx0_d(rx0s_d[b]),
     .rx0_dv(rx0s_dv[b]),
     .rx0_err(1'b0),
@@ -519,7 +544,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .tx0_dv(tx0s_dv[b]),
     .tx0_dr(1'b1),
     .tx0_err(tx0s_err[b]),
-    .rx1_clk(rx2_clk),
+    .rx1_clk(phy2_rx_clk), // Should be rx1s_clk[b], Yosys synthesis fails!
     .rx1_d(rx1s_d[b]),
     .rx1_dv(rx1s_dv[b]),
     .rx1_err(1'b0),
@@ -549,7 +574,9 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .rx1_status(rx1s_status[b]),
     .rx1_delay(rx1s_delay[b]),
     .rx1_rt_clk_count(rx1s_rt_clk_count[b]),
-    .rx1_clk_adjust_fast(rx1_clk_adjust_fast[b])
+    .rx1_clk_adjust_fast(rx1_clk_adjust_fast[b]),
+    .clk_en(clk_s_en[b]),
+    .dv_en(dv_s_en[b])
 );
 end
 endgenerate
@@ -599,7 +626,8 @@ end // parameter_check
 assign clk_div2 = clk_count[0]; // 50MHz
 assign clk_div4 = clk_count[1]; // 25Mhz
 // assign mdio_clk = clk_count[2]; // 12.5MHz
-assign mdio_clk = clk_count[3]; // 6.25MHz Marvell PHY 88E1512 MDC < 12MHz!
+// assign mdio_clk = clk_count[3]; // 6.25MHz
+assign mdio_clk = clk_count[4]; // 3.125MHz Marvell PHY 88E1512 MDC < 5MHz!
 
 localparam RXFW = clog2( RX_FIFO );
 
@@ -609,6 +637,7 @@ reg [7:0] u_rxd_cmd = 0;
 reg [15:0] u_rxd_param = 0;
 reg [15:0] u_txd = 0;
 reg [2:0] u_tx_count = 0;
+reg u_rx_end = 0;
 reg u_tx_enable = 0;
 
 wire u_rxd_0_9;
@@ -640,6 +669,10 @@ localparam [7:0] CR = 8'h0D;
 /*============================================================================*/
 always @(posedge clk) begin : uart_cmd
 /*============================================================================*/
+    s_mdio_dv <= s_mdio_dv & s_mdio_dr;
+    tx0u_dv_i <= tx0u_dv_i & ~( tx0u_dv & tx0u_dv_i );
+    tx1u_dv_i <= tx1u_dv_i & ~( tx1u_dv & tx1u_dv_i );
+    u_rx_end <= 0;
     if ( uart_io_rx_dv && uart_io_rx_dr ) begin
         if ( u_rxd_0_9 || u_rxd_a_f || u_rxd_A_F ) begin
             if ( 0 == u_rx_count ) begin
@@ -662,19 +695,16 @@ always @(posedge clk) begin : uart_cmd
             end
             u_rx_count <= u_rx_count + 1;
         end
+        u_rx_end <= ~uart_rx_fifo_nz;
     end
-    s_mdio_dv <= s_mdio_dv & s_mdio_dr;
-    tx0u_dv_i <= tx0u_dv_i & ~( tx0u_dv & tx0u_dv_i );
-    tx1u_dv_i <= tx1u_dv_i & ~( tx1u_dv & tx1u_dv_i );
-    if ( !uart_rx_fifo_nz && s_mdio_dr ) begin
+    if ( u_rx_end && s_mdio_dr ) begin
         case ( u_rxd_cmd[7:6] )
-        2'b00 : begin // MDIO registers 0x00-0x1F, 2 PHYs
+        2'b00 : begin // MDIO registers 0x00-0x1F, 2 PHYs (0x00, 0x20)
             if ( 2 == u_rx_count ) begin
                 s_mdio_pa <= u_rxd_cmd[5];
                 s_mdio_ra <= u_rxd_cmd[4:0];
                 s_mdio_rd <= 1; // Read MDIO
                 s_mdio_dv <= 1;
-                u_rx_count <= 0;
             end
             if ( 6 == u_rx_count ) begin
                 s_mdio_pa <= u_rxd_cmd[5];
@@ -682,18 +712,19 @@ always @(posedge clk) begin : uart_cmd
                 s_mdio_rd <= 0; // Write MDIO
                 s_mdio_d <= u_rxd_param;
                 s_mdio_dv <= 1;
-                u_rx_count <= 0;
             end
-        end    
-        2'b01 : begin // PHY RX/TX
+        end
+        2'b01 : begin // PHY RX/TX (0x40, 0x60)
             if ( 2 == u_rx_count ) begin // RX
                 u_txd <= {rx1_error, 7'd0, rx1_data}; // PHY1
                 if ( u_rxd_cmd[5] ) begin // PHY2
                     u_txd <= {rx2_error, 7'd0, rx2_data};
-                end    
+                end
+                u_txd[15] <= rx1tx1_link;
+                u_txd[14] <= rx0tx0_link;
+                u_txd[13] <= rx1_loopback;
+                u_txd[12] <= rx0_loopback;
                 u_tx_enable <= 1;
-                u_tx_count <= 0;
-                u_rx_count <= 0;
             end
             if ( 4 == u_rx_count ) begin // TX
                 if ( u_rxd_cmd[5] ) begin // PHY2
@@ -702,18 +733,62 @@ always @(posedge clk) begin : uart_cmd
                 end else begin // PHY1
                     tx0u_dv_i <= 1;
                     tx0u_d <= u_rxd_param[15:8];
-                end    
-                u_rx_count <= 0;
+                end
             end
         end
-        2'b10 : begin // PHY link up
-            if ( 3 == u_rx_count ) begin
-                rx0tx0_link <= u_rxd_param[8];
-                u_rx_count <= 0;
+        2'b10 : begin // PHY link up (0x80)
+            case ( u_rxd_cmd[5:0] )
+            6'h00 : begin
+                if ( 2 == u_rx_count ) begin // R0 status
+                    u_txd[15:12] <= tx0m_status;
+                    u_txd[11:8] <= rx0s_status[0];
+                    u_txd[7:4] <= rx0s_status[1];
+                    u_txd[3:0] <= rx0s_status[2];
+                    u_tx_enable <= 1;
+                end
+                if ( 3 == u_rx_count ) begin
+                    rx1tx1_link <= u_rxd_param[13];
+                    rx0tx0_link <= u_rxd_param[12]; // Upper nibble word!
+                end
             end
+            6'h01 : begin
+                if ( 2 == u_rx_count ) begin // R1 status
+                    u_txd[15:12] <= tx1m_status;
+                    u_txd[11:8] <= rx1s_status[0];
+                    u_txd[7:4] <= rx1s_status[1];
+                    u_txd[3:0] <= rx1s_status[2];
+                    u_tx_enable <= 1;
+                end
+            end
+            6'h02 : begin
+                if ( 2 == u_rx_count ) begin // CLK enable
+                    u_txd[15:12] <= 4'h9; // Master clock always enabled
+                    u_txd[11:8] <= clk_s_en[0];
+                    u_txd[7:4] <= clk_s_en[1];
+                    u_txd[3:0] <= clk_s_en[2];
+                    u_tx_enable <= 1;
+                end
+            end
+            6'h03 : begin
+                if ( 2 == u_rx_count ) begin // DV enable
+                    u_txd[15:12] <= {dv_m_en[1], 2'b0, dv_m_en[0]};
+                    u_txd[11:8] <= dv_s_en[0];
+                    u_txd[7:4] <= dv_s_en[1];
+                    u_txd[3:0] <= dv_s_en[2];
+                    u_tx_enable <= 1;
+                end
+            end
+            6'h10 : begin // Read last UART RXD data
+                if ( 2 == u_rx_count ) begin
+                    u_txd <= u_rxd_param;
+                    u_tx_enable <= 1;
+                end
+            end
+            endcase
         end
         endcase
-        rx1tx1_link <= rx0tx0_link;
+        u_rx_count <= 0;
+        u_tx_count <= 0;
     end
     uart_io_tx_dv <= 0;
     if ( u_tx_enable ) begin
@@ -741,34 +816,81 @@ always @(posedge clk) begin : uart_cmd
     end
 end // uart_cmd
 
+reg [22:0] phy1_rx_clk_count = 0;
 /*============================================================================*/
-always @(posedge rx1_clk) begin : phy1_rx_process
+always @(posedge phy1_rx_clk) begin : phy1_rx_process
 /*============================================================================*/
     if ( phy1_rx_dv ) begin
         rx1_data <= phy1_rx_d;
         rx1_error <= rx1_er;
     end
-end
+    phy1_rx_clk_count <= phy1_rx_clk_count + 1;
+end // phy1_rx_process
 
 /*============================================================================*/
-always @(posedge tx1_clk) begin : phy1_tx_process
+always @(posedge phy1_tx_clk) begin : phy1_tx_process
+/*============================================================================*/
+    phy1_tx_d <= tx0mp_d; // Synchronize
+    phy1_tx_dv <= tx0mp_dv;
+end // phy1_tx_process
+
+/*============================================================================*/
+always @(posedge tx0m_clk) begin : master_tx_process
 /*============================================================================*/
     tx0u_dv <= tx0u_dv_i;
-end
+end // master_tx_process
 
+reg [22:0] phy2_rx_clk_count = 0;
 /*============================================================================*/
-always @(posedge rx2_clk) begin : phy2_rx_process
+always @(posedge phy2_rx_clk) begin : phy2_rx_process
 /*============================================================================*/
+    rx1m_d <= tx1s_d[NR_SR2CB_SLAVE_NODES-1]; // Synchronize
+    rx1m_dv <= tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
     if ( phy2_rx_dv ) begin
         rx2_data <= phy2_rx_d;
         rx2_error <= rx2_er;
     end
-end
+    phy2_rx_clk_count <= phy2_rx_clk_count + 1;
+end // phy2_rx_process
 
 /*============================================================================*/
-always @(posedge tx2_clk) begin : phy2_tx_process
+always @(posedge phy2_tx_clk) begin : phy2_tx_process
+/*============================================================================*/
+    phy2_tx_d <= tx0s_d[0]; // Synchronize
+    phy2_tx_dv <= tx0s_dv[0];
+end // phy2_tx_process
+
+/*============================================================================*/
+always @(posedge tx0s_clk[0]) begin : slave0_tx_process
 /*============================================================================*/
     tx1u_dv <= tx1u_dv_i;
-end
+end // slave0_tx_process
+
+integer i;
+reg [NR_SR2CB_SLAVE_NODES:0] ring0_ready = 0;
+reg [NR_SR2CB_SLAVE_NODES:0] ring1_ready = 0;
+/*============================================================================*/
+always @(posedge clk) begin : ring_status
+/*============================================================================*/
+    // Slave nodes
+    for ( i = 0; i < NR_SR2CB_SLAVE_NODES; i = i + 1 ) begin
+        ring0_ready[i] <= ( `eR_READY == rx0s_status[i] );
+        ring1_ready[i] <= ( `eR_READY == rx1s_status[i] );
+    end
+    // Master node
+    ring0_ready[NR_SR2CB_SLAVE_NODES] <= ( `eR_READY == rx0m_status );
+    ring1_ready[NR_SR2CB_SLAVE_NODES] <= ( `eR_READY == rx1m_status );
+end // ring_status
+
+assign LED[7:4] = 4'hF; // 1 = off
+assign LED[1:0] = 2'b11; // 1 = off
+assign SEG[13:12] = 2'b11; // 1 = 0ff
+assign SEG[10:8] = 3'h7; // 1 = 0ff
+assign SEG[6:0] = 7'h7F; // 1 = 0ff
+
+assign LED[2] = ~&ring0_ready; // Green LEDs
+assign LED[3] = ~&ring1_ready;
+assign SEG[7] = phy1_rx_clk_count[22]; // h-segment
+assign SEG[11] = phy2_rx_clk_count[22]; // m-segment
 
 endmodule // ecp5_sr2cb

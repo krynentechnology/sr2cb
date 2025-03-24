@@ -124,6 +124,8 @@ wire [2:0] rx1s_status[0:NR_SR2CB_SLAVE_NODES-1];
 wire [27:0] rx1s_delay[0:NR_SR2CB_SLAVE_NODES-1];
 wire [67:0] rx1s_rt_clk_count[0:NR_SR2CB_SLAVE_NODES-1];
 wire rx1_clk_adjust_fast[0:NR_SR2CB_SLAVE_NODES-1];
+wire [3:0] clk_s_en[0:NR_SR2CB_SLAVE_NODES-1];
+wire [3:0] dv_s_en[0:NR_SR2CB_SLAVE_NODES-1];
 
 integer k = 0;
 /*============================================================================*/
@@ -147,6 +149,7 @@ wire tx1s0_dv;
 assign tx1s0_dv = tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
 wire rx0_loopback;
 wire rx1_loopback;
+wire [1:0] dv_m_en;
 
 /*============================================================================*/
 sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
@@ -200,7 +203,8 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .tx1_status(tx1m_status),
     .tx1_c_s(tx1m_c_s),
     .ring_reset_pending(ring_reset_pending),
-    .clk_count(clk_m_count)
+    .clk_count(clk_m_count),
+    .dv_en(dv_m_en)
 );
 
 /*============================================================================*/
@@ -310,7 +314,9 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .rx1_status(rx1s_status[b]),
     .rx1_delay(rx1s_delay[b]),
     .rx1_rt_clk_count(rx1s_rt_clk_count[b]),
-    .rx1_clk_adjust_fast(rx1_clk_adjust_fast[b])
+    .rx1_clk_adjust_fast(rx1_clk_adjust_fast[b]),
+    .clk_en(clk_s_en[b]),
+    .dv_en(dv_s_en[b])
 );
 end
 endgenerate

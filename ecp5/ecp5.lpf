@@ -21,7 +21,7 @@ LOCATE COMP "ARST_N" SITE "T1" ;
 # FREQUENCIES AND TIMING
 ############################################################
 IOBUF PORT "CLK" IO_TYPE=LVDS DIFFRESISTOR=100 ;
-FREQUENCY NET "CLK" 100.000000 MHz ;
+FREQUENCY NET "CLK" 100.000 MHz ;
 ############################################################
 # UART SIGNALS
 ## WARNING: The ECP5 Versa Development Board has from factory
@@ -70,6 +70,8 @@ LOCATE COMP "PHY2_RGMII_TXD[0]" SITE "J17" ;
 LOCATE COMP "PHY2_MDC" SITE "G19" ;
 LOCATE COMP "PHY2_MDIO" SITE "H20" ;
 LOCATE COMP "PHY2_CONFIG" SITE "G20" ;
+FREQUENCY NET "PHY1_RGMII_RXCLK" 25.000 MHz ;
+FREQUENCY NET "PHY2_RGMII_RXCLK" 25.000 MHz ;
 ############################################################
 # LED GPIO SIGNALS from top (buttons) to bottom (PCIe).
 ## WARNING: Lattice Diamond generates error for LED[7:0]

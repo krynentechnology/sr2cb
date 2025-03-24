@@ -191,7 +191,9 @@ sr2cb_s slv_node_0(
     .rx1_status(),
     .rx1_delay(),
     .rx1_rt_clk_count(rx1s0_rt_clk_count),
-    .rx1_clk_adjust_fast()
+    .rx1_clk_adjust_fast(),
+    .clk_en(),
+    .dv_en()
 );
 
 defparam slv_node_0.NR_CHANNELS = NR_CHANNELS;

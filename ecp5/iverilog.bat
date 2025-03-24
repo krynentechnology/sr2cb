@@ -15,7 +15,7 @@ if not defined IVERILOG (
     goto :END
   )
 )
-iverilog.exe -o ecp5_sr2cb.out -I../rtl -c ecp5_sr2cb_files.txt
-if exist ecp5_sr2cb.out vvp.exe ecp5_sr2cb.out
-if exist ecp5_sr2cb.out del ecp5_sr2cb.out
+iverilog.exe -o ecp5_sr2cb_tb.out -I../rtl -g2009 -c ecp5_sr2cb_files.txt
+if exist ecp5_sr2cb_tb.out vvp.exe ecp5_sr2cb_tb.out
+if exist ecp5_sr2cb_tb.out del ecp5_sr2cb_tb.out
 :END

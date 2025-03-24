@@ -51,7 +51,8 @@ module sr2cb_m #(
     tx0rx0_valid,
     tx1rx1_valid,
     ring_reset_pending,
-    clk_count
+    clk_count,
+    dv_en // Debug signals
     );
 
 localparam MAX_CLOG2_WIDTH = 16;
@@ -128,6 +129,7 @@ output reg  tx0rx0_valid = 0; // rx0_node_pos, rx0_c_s, rx0_delay valid
 output reg  tx1rx1_valid = 0; // rx1_node_pos, rx1_c_s, rx1_delay valid
 output wire ring_reset_pending;
 output wire [63:0] clk_count; // Actual master clock count
+output wire [1:0] dv_en; // Debug signals
 
 // Registers and wires
 reg  [63:0] clk_m_count = 0;
@@ -826,20 +828,20 @@ always @(posedge clk) begin : handle_ports
         if ( rx0tx0_link && !rx0_dv && !tx1_rr_request ) begin
             if ( 2'b10 == rx0_clk_i ) begin
                 tx0_rr_request <= 0;
-                tx0_status_i <= `eR_INIT;
                 dv00_en <= 0;
             end
             if ( 2'b10 == rx1_clk_i ) begin
+                tx0_status_i <= `eR_INIT;
                 dv11_en <= 1; // RX1 loopback!
             end
             delay_count <= clk_delay_tx0_offset;
         end else if ( rx1tx1_link && !rx1_dv && !tx0_rr_request  ) begin
             if ( 2'b10 == rx1_clk_i ) begin
                 tx1_rr_request <= 0;
-                tx1_status_i <= `eR_INIT;
                 dv11_en <= 0;
             end
             if ( 2'b10 == rx0_clk_i ) begin
+                tx1_status_i <= `eR_INIT;
                 dv00_en <= 1; // RX0 loopback!
             end
             delay_count <= clk_delay_tx1_offset;
@@ -953,5 +955,7 @@ assign tx0_d = tx0_d_i | ( rx00_d_i & { 8{ rx0_loopback }} );
 assign tx0_dv = tx0_dv_i | ( rx0_dv_i & dv00_en & rx0_loopback );
 assign tx1_d = tx1_d_i | ( rx11_d_i & { 8{ rx1_loopback }} );
 assign tx1_dv = tx1_dv_i | ( rx1_dv_i & dv11_en & rx1_loopback );
+// Debug signals
+assign dv_en = {dv11_en, dv00_en};
 
 endmodule // sr2cb_m

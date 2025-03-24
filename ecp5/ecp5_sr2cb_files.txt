@@ -7,3 +7,4 @@
 ..\rtl\sr2cb_m_phy_pre.v
 ..\rtl\sr2cb_s.v
 ecp5_sr2cb.v
+ecp5_sr2cb_tb.sv

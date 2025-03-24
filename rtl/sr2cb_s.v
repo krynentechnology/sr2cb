@@ -44,7 +44,8 @@ module sr2cb_s #(
     rx0_node_pos, rx0_c_s, // _c_s = command/status
     rx1_node_pos, rx1_c_s,
     rx0_status, rx0_delay, rx0_rt_clk_count, rx0_clk_adjust_fast,
-    rx1_status, rx1_delay, rx1_rt_clk_count, rx1_clk_adjust_fast
+    rx1_status, rx1_delay, rx1_rt_clk_count, rx1_clk_adjust_fast,
+    clk_en, dv_en // Debug signals
     );
 
 localparam MAX_CLOG2_WIDTH = 16;
@@ -113,6 +114,8 @@ output reg  [2:0] rx1_status = 0;
 output reg  [27:0] rx1_delay = 0;
 output wire [67:0] rx1_rt_clk_count; // Real-time R1 clock count
 output reg  rx1_clk_adjust_fast = 0; // Monitor for external clk changes
+output wire [3:0] clk_en;
+output wire [3:0] dv_en;
 
 // Registers and wires
 reg         clk00_en = 0;
@@ -943,5 +946,8 @@ assign tx1_d = ( rx11_d_i & { 8{ clk11_en }} ) | ( rx01_d_i & { 8{ clk01_en }} )
 assign tx1_dv = ( rx1_dv_i & dv11_en ) | ( rx0_dv_i & dv01_en );
 assign tx0_err = rx0_error | rx0_err;
 assign tx1_err = rx1_error | rx1_err;
+// Debug signals
+assign clk_en = {clk11_en, clk10_en, clk01_en, clk00_en};
+assign dv_en = {dv11_en, dv10_en, dv01_en, dv00_en};
 
 endmodule // sr2cb_s
