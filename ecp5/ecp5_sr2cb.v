@@ -535,7 +535,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
 /*============================================================================*/
     .clk(clk),
     .rst_n(rst_n),
-    .rx0_clk(rx0s_clk[b]),
+    .rx0_clk(phy2_rx_clk),
     .rx0_d(rx0s_d[b]),
     .rx0_dv(rx0s_dv[b]),
     .rx0_err(1'b0),
@@ -544,7 +544,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .tx0_dv(tx0s_dv[b]),
     .tx0_dr(1'b1),
     .tx0_err(tx0s_err[b]),
-    .rx1_clk(phy2_rx_clk), // Should be rx1s_clk[b], Yosys synthesis fails!
+    .rx1_clk(phy2_rx_clk),
     .rx1_d(rx1s_d[b]),
     .rx1_dv(rx1s_dv[b]),
     .rx1_err(1'b0),

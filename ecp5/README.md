@@ -7,6 +7,6 @@
 
 <img src="FT2232H_ecp5versa_fix.png" width=800>
 
-<p>The terminal command "00A100" (write 0xA100 to PHY1 and PHY2 register 0 - Copper Control) forces the PHYs to 100Mb full duplex. Read PHYs registers 17 (Copper Specific Status Register 1 - 100Mbps, full duplex, auto-negotiation resolved and (copper) link-up). The terminal command "801" sets the PHYs link up bits in the SR2CB FPGA logic and the SR2CB master starts sending SR2CB frames.</p>
+<p>The terminal commands "00A100" and "20A100" (write 0xA100 to PHY1 and PHY2 register 0 - Copper Control) forces the PHYs to 100Mb full duplex. Force link up for a continuous PHYs RXCLK with terminal commands "100400" and "300400" (write 0x0400 to PHY1 and PHY2 register 16 - 0x10/0x30). Read PHYs register 17 - 0x11/0x31 (Copper Specific Status Register 1 - 100Mbps, full duplex, auto-negotiation resolved and (copper) link-up). The terminal command "803" sets the PHYs link up bits in the SR2CB FPGA logic and the SR2CB master starts sending SR2CB frames.</p>
 
 <img src="ecp5_100Mb_terminal.png" width=600>

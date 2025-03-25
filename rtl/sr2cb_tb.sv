@@ -43,14 +43,19 @@ localparam CHW = $clog2( NR_CHANNELS );
 
 reg  clk = 0;
 reg  rst_n = 0;
-reg  rxtx_clk = 0;
+reg  rx0_clk = 0;
+reg  rx1_clk = 0;
 /*---------------------------*/
 reg  rx0tx0_link = 0;
+reg  [7:0] rx0m_d = 0;
+reg  rx0m_dv = 0;
 wire [7:0] tx0m_d;
 wire tx0m_dv;
 wire tx0m_err;
 wire tx0m_clk;
 reg  rx1tx1_link = 0;
+reg  [7:0] rx1m_d = 0;
+reg  rx1m_dv = 0;
 wire [7:0] tx1m_d;
 wire tx1m_dv;
 wire tx1m_err;
@@ -81,6 +86,7 @@ wire [2:0] tx1m_status;
 reg  [12:0] tx1m_c_s = 0;
 wire ring_reset_pending;
 wire [63:0] clk_m_count;
+wire [1:0] dv_m_en;
 /*---------------------------*/
 wire [7:0] phy_pre_0_d;
 wire phy_pre_0_dv;
@@ -90,12 +96,14 @@ wire [7:0] phy_pre_1_d;
 wire phy_pre_1_dv;
 wire phy_pre_1_dr;
 /*---------------------------*/
+wire rx0s_clk[0:NR_SR2CB_SLAVE_NODES-1];
 wire [7:0] rx0s_d[0:NR_SR2CB_SLAVE_NODES-1];
 wire rx0s_dv[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx0s_clk[0:NR_SR2CB_SLAVE_NODES-1];
 wire [7:0] tx0s_d[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx0s_dv[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx0s_err[0:NR_SR2CB_SLAVE_NODES-1];
+wire rx1s_clk[0:NR_SR2CB_SLAVE_NODES-1];
 wire [7:0] rx1s_d[0:NR_SR2CB_SLAVE_NODES-1];
 wire rx1s_dv[0:NR_SR2CB_SLAVE_NODES-1];
 wire tx1s_clk[0:NR_SR2CB_SLAVE_NODES-1];
@@ -139,17 +147,8 @@ initial begin
     end
 end
 
-wire [7:0] tx0s0_d;
-assign tx0s0_d = tx0s_d[0];
-wire tx0s0_dv;
-assign tx0s0_dv = tx0s_dv[0];
-wire [7:0] tx1s0_d;
-assign tx1s0_d = tx1s_d[NR_SR2CB_SLAVE_NODES-1];
-wire tx1s0_dv;
-assign tx1s0_dv = tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
 wire rx0_loopback;
 wire rx1_loopback;
-wire [1:0] dv_m_en;
 
 /*============================================================================*/
 sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
@@ -158,9 +157,9 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .rst_n(rst_n),
     .rx0tx0_link(rx0tx0_link), // Actual link status provided by PHY device
     .rx0_loopback(rx0_loopback),
-    .rx0_clk(rxtx_clk),
-    .rx0_d(tx0s0_d),
-    .rx0_dv(tx0s0_dv),
+    .rx0_clk(rx0_clk),
+    .rx0_d(rx0m_d),
+    .rx0_dv(rx0m_dv),
     .rx0_err(1'b0),
     .tx0_clk(tx0m_clk),
     .tx0_d(tx0m_d),
@@ -169,9 +168,9 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .tx0_err(tx0m_err),
     .rx1tx1_link(rx1tx1_link), // Actual link status provided by PHY device
     .rx1_loopback(rx1_loopback),
-    .rx1_clk(rxtx_clk),
-    .rx1_d(tx1s0_d),
-    .rx1_dv(tx1s0_dv),
+    .rx1_clk(rx1_clk),
+    .rx1_d(rx1m_d),
+    .rx1_dv(rx1m_dv),
     .rx1_err(1'b0),
     .tx1_clk(tx1m_clk),
     .tx1_d(tx1m_d),
@@ -210,7 +209,7 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
 /*============================================================================*/
 sr2cb_m_phy_pre phy_pre_0(
 /*============================================================================*/
-    .clk(rxtx_clk),
+    .clk(rx0_clk),
     .rst_n(rst_n),
     .rx_d(tx0m_d),
     .rx_dv(rx0_loopback ? 1'b0 : tx0m_dv), // RX0 loopback
@@ -222,7 +221,7 @@ sr2cb_m_phy_pre phy_pre_0(
 /*============================================================================*/
 sr2cb_m_phy_pre phy_pre_1(
 /*============================================================================*/
-    .clk(rxtx_clk),
+    .clk(rx1_clk),
     .rst_n(rst_n),
     .rx_d(tx1m_d),
     .rx_dv (rx1_loopback ? 1'b0 : tx1m_dv), // RX1 loopback
@@ -253,15 +252,19 @@ assign tx1mp_dv = rx1_loopback ? tx1m_dv : phy_pre_1_dv;
 
 genvar a;
 generate
+    assign rx0s_clk[0] = tx0m_clk;
     assign rx0s_d[0] = tx0mp_d;
     assign rx0s_dv[0] = tx0mp_dv;
-    assign rx1s_d[NR_SR2CB_SLAVE_NODES-1] = tx1mp_d;
-    assign rx1s_dv[NR_SR2CB_SLAVE_NODES-1] = tx1mp_dv;
     for ( a = 1; a < NR_SR2CB_SLAVE_NODES; a = a + 1 ) begin
+        assign rx0s_clk[a] = tx1s_clk[a-1];
         assign rx0s_d[a] = tx1s_d[a-1];
         assign rx0s_dv[a] = tx1s_dv[a-1];
     end
+    assign rx1s_clk[NR_SR2CB_SLAVE_NODES-1] = tx1m_clk;
+    assign rx1s_d[NR_SR2CB_SLAVE_NODES-1] = tx1mp_d;
+    assign rx1s_dv[NR_SR2CB_SLAVE_NODES-1] = tx1mp_dv;
     for ( a = 0; a < ( NR_SR2CB_SLAVE_NODES - 1 ); a = a + 1 ) begin
+        assign rx1s_clk[a] = tx0s_clk[a+1];
         assign rx1s_d[a] = tx0s_d[a+1];
         assign rx1s_dv[a] = tx0s_dv[a+1];
     end
@@ -275,7 +278,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
 /*============================================================================*/
     .clk(clk),
     .rst_n(rst_n),
-    .rx0_clk(rxtx_clk),
+    .rx0_clk(rx0_clk),
     .rx0_d(rx0s_d[b]),
     .rx0_dv(rx0s_dv[b]),
     .rx0_err(1'b0),
@@ -284,7 +287,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .tx0_dv(tx0s_dv[b]),
     .tx0_dr(1'b1),
     .tx0_err(tx0s_err[b]),
-    .rx1_clk(rxtx_clk),
+    .rx1_clk(rx1_clk),
     .rx1_d(rx1s_d[b]),
     .rx1_dv(rx1s_dv[b]),
     .rx1_err(1'b0),
@@ -322,9 +325,24 @@ end
 endgenerate
 
 always #5  clk = ~clk; // 100 MHz clock
-always #40 rxtx_clk = ~rxtx_clk; // 12.5 MHz clock
+always #40.001 rx0_clk = ~rx0_clk; // 12.5 MHz clock +25ppm
+always #39.999 rx1_clk = ~rx1_clk; // 12.5 MHz clock -25ppm
 
 reg [27:0] delay[0:NR_SR2CB_SLAVE_NODES-1][0:1]; // Delay received from all nodes
+
+/*============================================================================*/
+always @(posedge rx0_clk) begin : rx0_synchronize
+/*============================================================================*/
+    rx0m_d <= tx0s_d[0];
+    rx0m_dv <= tx0s_dv[0];
+end // rx0_synchronize
+
+/*============================================================================*/
+always @(posedge rx1_clk) begin : rx1_synchronize
+/*============================================================================*/
+    rx1m_d <= tx1s_d[NR_SR2CB_SLAVE_NODES-1];
+    rx1m_dv <= tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
+end // rx0_synchronize
 
 /*============================================================================*/
 always @(posedge clk) begin : collect_delay
@@ -340,6 +358,17 @@ always @(posedge clk) begin : collect_delay
         end
     end
 end // collect_delay
+
+/*============================================================================*/
+function signed [27:0] abs( input signed [27:0] mclk_delta );
+/*============================================================================*/
+    begin
+        abs = mclk_delta;
+        if ( mclk_delta[27] ) begin
+            abs = -mclk_delta;
+        end
+    end
+endfunction
 
 localparam MIDDLE_NODE = NR_SR2CB_SLAVE_NODES / 2;
 localparam LAST_NODE = NR_SR2CB_SLAVE_NODES - 1;
@@ -358,14 +387,15 @@ begin
         wait ( phy_pre_0_dr ) @( negedge phy_pre_0_dr );
         wait ( phy_pre_1_dr ) @( negedge phy_pre_1_dr );
         // Generated slave node instances are not addressable by index variable!
-        passed = ( 0 == slave_node[0].slvn.rx0_mclk_delta ) && ( 0 == slave_node[0].slvn.rx1_mclk_delta );
+        passed = ( abs( slave_node[0].slvn.rx0_mclk_delta ) < 2 ) &&
+                 ( abs( slave_node[0].slvn.rx1_mclk_delta ) < 2 );
         if ( passed && ( NR_SR2CB_SLAVE_NODES > 2 )) begin
-            passed = ( 0 == slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta ) &&
-                     ( 0 == slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta );
+            passed = ( abs( slave_node[MIDDLE_NODE].slvn.rx0_mclk_delta ) < 2 ) &&
+                     ( abs( slave_node[MIDDLE_NODE].slvn.rx1_mclk_delta ) < 2 );
         end
         if ( passed && ( NR_SR2CB_SLAVE_NODES > 1 )) begin
-            passed = ( 0 == slave_node[LAST_NODE].slvn.rx0_mclk_delta ) &&
-                     ( 0 == slave_node[LAST_NODE].slvn.rx1_mclk_delta );
+            passed = ( abs( slave_node[LAST_NODE].slvn.rx0_mclk_delta ) < 2 ) &&
+                     ( abs( slave_node[LAST_NODE].slvn.rx1_mclk_delta ) < 2 );
         end
     end
     if ( ring_reset ) begin
@@ -424,14 +454,14 @@ begin
     endcase
     if ( rdir ) begin
         rx1tx1_link = 1;
-        wait ( rxtx_clk ) @( negedge rxtx_clk );
-        wait ( rxtx_clk ) @( negedge rxtx_clk );
+        wait ( rx1_clk ) @( negedge rx1_clk );
+        wait ( rx1_clk ) @( negedge rx1_clk );
         rx0tx0_link = 1;
         wait ( `eR_WAIT == tx1m_status );
     end else begin
         rx0tx0_link = 1;
-        wait ( rxtx_clk ) @( negedge rxtx_clk );
-        wait ( rxtx_clk ) @( negedge rxtx_clk );
+        wait ( rx0_clk ) @( negedge rx0_clk );
+        wait ( rx0_clk ) @( negedge rx0_clk );
         rx1tx1_link = 1;
         wait ( `eR_WAIT == tx0m_status );
     end
