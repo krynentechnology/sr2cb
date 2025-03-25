@@ -3,7 +3,7 @@
 
 <img src="ecp5_100Mb_wired.jpg" width=800>
 
-<p>The Lattice Semiconductor&reg; ECP5&#8482; Development Board has a 1Gb/s Ethernet PHY (Marvell 88E1512) and should be setup for 100Mb/s with a cross-wired RJ-45 cable via a terminal connection. The SR2CB FPGA logic provides an UART/TTL terminal connection via the ECP5&#8482; Development Board FDTI USB port. The ECP5&#8482; Versa Development Board has from factory its FDTI FT2232H EEPROM not correctly configured for UART use. Reconfigure EEPROM by FT_PROG utility from FDTI - "Scan and parse". Set "Hardware Specific" - port B to UART and VCP (Virtual COM Port) and reprogram FT2232H EEPROM.</p>
+<p>The Lattice Semiconductor&reg; ECP5&#8482; Development Board has two 1Gb/s Ethernet PHYs (Marvell 88E1512) and those should be setup for 100Mb/s with a cross-wired RJ-45 cable via a terminal connection. The SR2CB FPGA logic provides an UART/TTL terminal connection via the ECP5&#8482; Development Board FDTI USB port. The ECP5&#8482; Versa Development Board has from factory its FDTI FT2232H EEPROM not correctly configured for UART use. Reconfigure EEPROM by FT_PROG utility from FDTI - "Scan and parse". Set "Hardware Specific" - port B to UART and VCP (Virtual COM Port) and reprogram FT2232H EEPROM.</p>
 
 <img src="FT2232H_ecp5versa_fix.png" width=800>
 
