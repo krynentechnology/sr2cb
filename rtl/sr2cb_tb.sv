@@ -1,5 +1,5 @@
 /**
- *  Copyright (C) 2024, Kees Krijnen.
+ *  Copyright (C) 2024, 2025, Kees Krijnen.
  *
  *  This program is free software: you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free

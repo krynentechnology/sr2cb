@@ -208,7 +208,7 @@ initial begin
     $display( "SR2CB ECP5 Versa simulation started" );
     rst_n = 1;
     #100
-    // uart_write( "801" );
+    // uart_write( "803" );
     ecp5_sr2cb_dut.rx0tx0_link = 1;
     #10
     ecp5_sr2cb_dut.rx1tx1_link = 1;

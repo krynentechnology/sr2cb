@@ -22,8 +22,10 @@
  *  The ECP5 Versa Development Board has two 1Gbs PHYs. One is connected to the
  *  SR2CB master RX0/TX0 ring interface and the other to SR2CB slave 0 RX0/TX0
  *  ring interface. The ECP5 board PHYs are forced to 100Mbs, full duplex by
- *  terminal commands. The PHYs are externally connected with a cross-wired
- *  RJ-45 cable. Terminal commands:
+ *  terminal commands. The link is forced good to have a continuous PHYs RXCLK.
+ *  The SR2CB master/slave modules require a continuously running RX0 and RX1
+ *  clock. The PHYs are externally connected with a cross-wired RJ-45 cable.
+ *  Terminal commands:
  *
  *    ECP5>00A100 // Write PHY1 reg 0 (0x00) to force 100Mb full duplex
  *    ECP5>20A100 // Write PHY2 reg 0 (0x20) to force 100Mb full duplex
@@ -36,6 +38,10 @@
  *    ECP5>6C08   // 100Mbps, full duplex, auto-negotiation resolved and
  *                // (copper) link-up
  *    ECP5>803    // Force ring R0/R1 link up
+ *
+ *  For new HW designs the SR2CB master/slave RX0/RX1 rings could be setup with
+ *  RMII PHYs (e.g. LAN8742A) where the 50MHz RX/TX PHY clock is provided by the
+ *  FPGA and the LED link status could be an FPGA input.
  */
 
 `resetall
@@ -428,9 +434,6 @@ end
 
 assign link_up = rx0tx0_link | rx1tx1_link;
 
-wire tx1s0r1_clk;
-assign tx1s0r1_clk = tx1s_clk[NR_SR2CB_SLAVE_NODES-1];
-
 /*============================================================================*/
 sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
 /*============================================================================*/
@@ -449,7 +452,7 @@ sr2cb_m #( .NR_CHANNELS( NR_CHANNELS )) master_node(
     .tx0_err(tx0m_err),
     .rx1tx1_link(rx1tx1_link), // Link up status set by terminal console
     .rx1_loopback(rx1_loopback),
-    .rx1_clk(phy2_rx_clk), // tx1s0r1_clk not active at atart!
+    .rx1_clk(phy1_rx_clk),
     .rx1_d(rx1m_d),
     .rx1_dv(rx1m_dv),
     .rx1_err(1'b0),
@@ -544,7 +547,7 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
     .tx0_dv(tx0s_dv[b]),
     .tx0_dr(1'b1),
     .tx0_err(tx0s_err[b]),
-    .rx1_clk(phy2_rx_clk),
+    .rx1_clk(phy1_rx_clk), // Different clock than rx0_clk to test CDC
     .rx1_d(rx1s_d[b]),
     .rx1_dv(rx1s_dv[b]),
     .rx1_err(1'b0),
@@ -580,9 +583,6 @@ sr2cb_s #( .NR_CHANNELS( NR_CHANNELS )) slvn (
 );
 end
 endgenerate
-
-wire clk_div2; // 25MHz
-wire clk_div4; // 12.5MHz
 
 reg [3:0] rst_count = 0;
 assign rst_n = &rst_count; // Synchronous reset!
@@ -623,8 +623,6 @@ initial begin : parameter_check
     end
 end // parameter_check
 
-assign clk_div2 = clk_count[0]; // 50MHz
-assign clk_div4 = clk_count[1]; // 25Mhz
 // assign mdio_clk = clk_count[2]; // 12.5MHz
 // assign mdio_clk = clk_count[3]; // 6.25MHz
 assign mdio_clk = clk_count[4]; // 3.125MHz Marvell PHY 88E1512 MDC < 5MHz!
@@ -736,9 +734,9 @@ always @(posedge clk) begin : uart_cmd
                 end
             end
         end
-        2'b10 : begin // PHY link up (0x80)
+        2'b10 : begin
             case ( u_rxd_cmd[5:0] )
-            6'h00 : begin
+            6'h00 : begin // PHY link up (0x80), read R0 status
                 if ( 2 == u_rx_count ) begin // R0 status
                     u_txd[15:12] <= tx0m_status;
                     u_txd[11:8] <= rx0s_status[0];
@@ -746,12 +744,12 @@ always @(posedge clk) begin : uart_cmd
                     u_txd[3:0] <= rx0s_status[2];
                     u_tx_enable <= 1;
                 end
-                if ( 3 == u_rx_count ) begin
+                if ( 3 == u_rx_count ) begin // PHY link up
                     rx1tx1_link <= u_rxd_param[13];
                     rx0tx0_link <= u_rxd_param[12]; // Upper nibble word!
                 end
             end
-            6'h01 : begin
+            6'h01 : begin // Read R1 status (0x81)
                 if ( 2 == u_rx_count ) begin // R1 status
                     u_txd[15:12] <= tx1m_status;
                     u_txd[11:8] <= rx1s_status[0];
@@ -760,8 +758,8 @@ always @(posedge clk) begin : uart_cmd
                     u_tx_enable <= 1;
                 end
             end
-            6'h02 : begin
-                if ( 2 == u_rx_count ) begin // CLK enable
+            6'h02 : begin // Read CLK enable debug signals (0x82)
+                if ( 2 == u_rx_count ) begin
                     u_txd[15:12] <= 4'h9; // Master clock always enabled
                     u_txd[11:8] <= clk_s_en[0];
                     u_txd[7:4] <= clk_s_en[1];
@@ -769,8 +767,8 @@ always @(posedge clk) begin : uart_cmd
                     u_tx_enable <= 1;
                 end
             end
-            6'h03 : begin
-                if ( 2 == u_rx_count ) begin // DV enable
+            6'h03 : begin // Read DV debug signals (0x83)
+                if ( 2 == u_rx_count ) begin
                     u_txd[15:12] <= {dv_m_en[1], 2'b0, dv_m_en[0]};
                     u_txd[11:8] <= dv_s_en[0];
                     u_txd[7:4] <= dv_s_en[1];
@@ -778,7 +776,7 @@ always @(posedge clk) begin : uart_cmd
                     u_tx_enable <= 1;
                 end
             end
-            6'h10 : begin // Read last UART RXD data
+            6'h10 : begin // Read last UART RXD data (0x90)
                 if ( 2 == u_rx_count ) begin
                     u_txd <= u_rxd_param;
                     u_tx_enable <= 1;
@@ -820,6 +818,8 @@ reg [22:0] phy1_rx_clk_count = 0;
 /*============================================================================*/
 always @(posedge phy1_rx_clk) begin : phy1_rx_process
 /*============================================================================*/
+    rx1m_d <= tx1s_d[NR_SR2CB_SLAVE_NODES-1]; // Synchronize
+    rx1m_dv <= tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
     if ( phy1_rx_dv ) begin
         rx1_data <= phy1_rx_d;
         rx1_error <= rx1_er;
@@ -844,8 +844,6 @@ reg [22:0] phy2_rx_clk_count = 0;
 /*============================================================================*/
 always @(posedge phy2_rx_clk) begin : phy2_rx_process
 /*============================================================================*/
-    rx1m_d <= tx1s_d[NR_SR2CB_SLAVE_NODES-1]; // Synchronize
-    rx1m_dv <= tx1s_dv[NR_SR2CB_SLAVE_NODES-1];
     if ( phy2_rx_dv ) begin
         rx2_data <= phy2_rx_d;
         rx2_error <= rx2_er;
