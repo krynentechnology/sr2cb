@@ -865,19 +865,19 @@ always @(posedge tx0s_clk[0]) begin : slave0_tx_process
 end // slave0_tx_process
 
 integer i;
-reg [NR_SR2CB_SLAVE_NODES:0] ring0_ready = 0;
-reg [NR_SR2CB_SLAVE_NODES:0] ring1_ready = 0;
+reg [NR_SR2CB_SLAVE_NODES:0] ring0_ready;
+reg [NR_SR2CB_SLAVE_NODES:0] ring1_ready;
 /*============================================================================*/
-always @(posedge clk) begin : ring_status
+always @(*) begin : ring_status
 /*============================================================================*/
     // Slave nodes
     for ( i = 0; i < NR_SR2CB_SLAVE_NODES; i = i + 1 ) begin
-        ring0_ready[i] <= ( `eR_READY == rx0s_status[i] );
-        ring1_ready[i] <= ( `eR_READY == rx1s_status[i] );
+        ring0_ready[i] = ( `eR_READY == rx0s_status[i] );
+        ring1_ready[i] = ( `eR_READY == rx1s_status[i] );
     end
     // Master node
-    ring0_ready[NR_SR2CB_SLAVE_NODES] <= ( `eR_READY == rx0m_status );
-    ring1_ready[NR_SR2CB_SLAVE_NODES] <= ( `eR_READY == rx1m_status );
+    ring0_ready[NR_SR2CB_SLAVE_NODES] = ( `eR_READY == tx0m_status );
+    ring1_ready[NR_SR2CB_SLAVE_NODES] = ( `eR_READY == tx1m_status );
 end // ring_status
 
 assign LED[7:4] = 4'hF; // 1 = off
