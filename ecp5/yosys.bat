@@ -7,10 +7,12 @@ if defined IVERILOG (
     goto :END
   )
 )
-if not defined YOSYS (
-  set YOSYS=%1
-  set IVERILOG=%1
-  set PATH=%PATH%;%1\bin;%1\lib
+if not "%1"=="" (
+  if not defined YOSYS (
+    set YOSYS=%1
+    set IVERILOG=%1
+    set PATH=%PATH%;%1\bin;%1\lib
+  )
 )
 if not defined YOSYS (
   echo Run batch file with path to Yosys/OSS oss-cad-suite installed directory

@@ -1,10 +1,12 @@
 echo off
 :: make file for Icarus Verilog simulator used to verify syntax and module
 :: parameter check
-if not defined IVERILOG (
-  if not defined YOSYS (
-    set IVERILOG=%1
-    set PATH=%PATH%;%1\bin
+if not "%1"=="" (
+  if not defined IVERILOG (
+    if not defined YOSYS (
+      set IVERILOG=%1
+      set PATH=%PATH%;%1\bin
+    )
   )
 )
 if not defined IVERILOG (
