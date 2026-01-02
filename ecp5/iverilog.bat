@@ -5,7 +5,7 @@ if not "%1"=="" (
   if not defined IVERILOG (
     if not defined YOSYS (
       set IVERILOG=%1
-      set PATH=%PATH%;%1\bin
+      set PATH=%PATH%;%1\bin;%1\lib
     )
   )
 )
