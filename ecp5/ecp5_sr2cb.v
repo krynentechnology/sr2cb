@@ -610,19 +610,6 @@ always @(posedge clk or negedge ARST_N) begin : clock_counter
     end
 end
 
-/*============================================================================*/
-initial begin : parameter_check
-/*============================================================================*/
-    if ( NR_BITS != 8 ) begin
-        $display( "NR_BITS = 8 expected for console interaction!" );
-        $finish;
-    end
-    if ( RX_FIFO < 1 ) begin
-        $display( "RX_FIFO < 1!" );
-        $finish;
-    end
-end // parameter_check
-
 // assign mdio_clk = clk_count[2]; // 12.5MHz
 // assign mdio_clk = clk_count[3]; // 6.25MHz
 assign mdio_clk = clk_count[4]; // 3.125MHz Marvell PHY 88E1512 MDC < 5MHz!
@@ -655,10 +642,10 @@ always @(*) begin : atoi_uart_rxd
         u_rxd = uart_io_rx_d - "0";
     end
     if ( u_rxd_a_f ) begin
-        u_rxd = uart_io_rx_d - "a" + 10;
+        u_rxd = uart_io_rx_d - "a" + 8'h0A;
     end
     if ( u_rxd_A_F ) begin
-        u_rxd = uart_io_rx_d - "A" + 10;
+        u_rxd = uart_io_rx_d - "A" + 8'h0A;
     end
 end // atoi_uart_rxd
 
@@ -791,7 +778,7 @@ always @(posedge clk) begin : uart_cmd
     uart_io_tx_dv <= 0;
     if ( u_tx_enable ) begin
         if ( uart_io_tx_dr && !uart_io_tx_dv ) begin
-            uart_io_tx_d <= {4'h0, u_txd[15:12]} + ( u_txd_0_9 ? "0" : ( "A" - 10 ));
+            uart_io_tx_d <= {4'h0, u_txd[15:12]} + ( u_txd_0_9 ? "0" : ( "A" - 8'h0A ));
             uart_io_tx_dv <= 1;
             if ( 4 == u_tx_count ) begin
                 uart_io_tx_d <= CR;
