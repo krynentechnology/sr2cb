@@ -72,11 +72,10 @@ initial begin : parameter_check
     end
 end // parameter_check
 
-localparam MAX_CLOG2_WIDTH = 32;
 /*============================================================================*/
-function integer clog2( input [MAX_CLOG2_WIDTH-1:0] value );
+function integer clog2( input [31:0] value );
 /*============================================================================*/
-    reg [MAX_CLOG2_WIDTH-1:0] depth;
+    reg [31:0] depth;
 begin
     clog2 = 1; // Minimum bit width
     if ( value > 1 ) begin
