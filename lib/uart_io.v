@@ -89,7 +89,7 @@ function integer strlen( input [( 10 * 8 )-1:0] prompt );
 /*============================================================================*/
 begin
     strlen = 0;
-    while (( prompt >> ( strlen * NR_BITS )) != 0 ) begin
+    while (( prompt >> ( strlen * 8 )) != 0 ) begin
         strlen = strlen + 1;
     end
 end
@@ -126,7 +126,7 @@ initial begin : init_prompt
 /*============================================================================*/
     prompt[0] = LF;
     for ( i = 1; i < TX_PROMPT_SIZE; i = i + 1 ) begin
-        prompt[i] = ( PROMPT >> (( PROMPT_SIZE - i ) * NR_BITS ));
+        prompt[i] = ( PROMPT >> (( PROMPT_SIZE - i ) * 8 ));
     end
 //  for ( i = 0; i < TX_PROMPT_SIZE; i = i + 1 ) begin
 //      $display( "prompt[%0d] = %x, %d, %d ", i, prompt[i], PROMPT_SIZE, TX_PROMPT_SIZE );
