@@ -22,8 +22,8 @@ if not defined YOSYS (
 if exist .\yosys rmdir /Q/S yosys
 if not exist .\yosys mkdir yosys
 cd .\yosys
-yosys.exe -p "synth_ecp5 -abc9 -json ecp5_sr2cb.json" ..\..\lib\uart.v ..\..\lib\uart_io.v ..\..\lib\phy_mdio.v ..\..\lib\phy_100Mb.v  ..\..\lib\randomizer.v ..\..\rtl\sr2cb_m_phy_pre.v ..\..\rtl\sr2cb_m.v ..\..\rtl\sr2cb_s.v ..\ecp5_sr2cb.v
-nextpnr-ecp5.exe --um-45k --package CABGA381 --speed 8 --json ecp5_sr2cb.json --textcfg ecp5_sr2cb.config --lpf ..\ecp5.lpf
-ecppack.exe --bit ecp5_sr2cb.bit ecp5_sr2cb.config
+yosys.exe -p "synth_ecp5 -abc9 -json ecp5um_sr2cb.json" ..\..\lib\uart.v ..\..\lib\uart_io.v ..\..\lib\phy_mdio.v ..\..\lib\phy_100Mb.v  ..\..\lib\randomizer.v ..\..\rtl\sr2cb_m_phy_pre.v ..\..\rtl\sr2cb_m.v ..\..\rtl\sr2cb_s.v ..\ecp5_sr2cb.v
+nextpnr-ecp5.exe --um-45k --package CABGA381 --speed 8 --json ecp5um_sr2cb.json --textcfg ecp5um_sr2cb.config --lpf ..\ecp5um.lpf
+ecppack.exe --bit ecp5um_sr2cb.bit ecp5um_sr2cb.config
 cd ..
 :END

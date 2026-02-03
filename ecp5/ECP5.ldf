@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<BaliProject version="3.2" title="ECP5" device="LFE5U-45F-8BG381C" default_implementation="build">
+<BaliProject version="3.2" title="ecp5u" device="LFE5U-45F-8BG381C" default_implementation="sr2cb">
     <Options/>
-    <Implementation title="build" dir="build" description="build" synthesis="lse" default_strategy="Strategy1">
+    <Implementation title="sr2cb" dir="diamond" description="sr2cb" synthesis="lse" default_strategy="Strategy1">
         <Options def_top="ecp5_sr2cb"/>
         <Source name="ecp5_sr2cb.v" type="Verilog" type_short="Verilog">
             <Options top_module="ecp5_sr2cb"/>
@@ -30,10 +30,10 @@
         <Source name="../rtl/sr2cb_s.v" type="Verilog" type_short="Verilog">
             <Options/>
         </Source>
-        <Source name="build/build.xcf" type="Programming Project File" type_short="Programming">
+        <Source name="diamond/ecp5u.xcf" type="Programming Project File" type_short="Programming">
             <Options/>
         </Source>
-        <Source name="ECP5.lpf" type="Logic Preference" type_short="LPF">
+        <Source name="ecp5u.lpf" type="Logic Preference" type_short="LPF">
             <Options/>
         </Source>
     </Implementation>
