@@ -15,7 +15,7 @@ if not defined IVERILOG (
 if exist .\bin rmdir /Q/S bin
 if not exist .\bin mkdir bin
 cd .\bin
-if "%1"=="" (
+if [%1]==[] (
   iverilog.exe -o sr2cb_s_tb.out -I .. -c ..\sr2cb_s_tb_files.txt
   iverilog.exe -o sr2cb_tb.out -I .. -c ..\sr2cb_tb_files.txt
 ) else (

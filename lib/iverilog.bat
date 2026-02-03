@@ -15,7 +15,7 @@ if not defined IVERILOG (
 if exist .\bin rmdir /Q/S bin
 if not exist .\bin mkdir bin
 cd .\bin
-if "%1"=="" (
+if [%1]==[] (
   iverilog.exe -o phy_100Mb_tb.out -I .. ..\phy_100Mb.v ..\phy_100Mb_tb.sv
   iverilog.exe -o phy_mdio_tb.out -I .. ..\phy_mdio.v ..\phy_mdio_tb.sv
   iverilog.exe -o randomizer_tb.out -I .. ..\randomizer.v ..\randomizer_tb.sv
