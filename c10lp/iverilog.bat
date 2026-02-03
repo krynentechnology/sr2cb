@@ -1,6 +1,6 @@
 echo off
 :: make file for Icarus Verilog simulator used to verify syntax and module
-if not "%1"=="" (
+if not [%1]==[] (
   if not defined IVERILOG (
     set IVERILOG=%1
     set PATH=%PATH%;%1\bin;%1\lib

@@ -7,7 +7,7 @@ if defined IVERILOG (
     goto :END
   )
 )
-if not "%1"=="" (
+if not [%1]==[] (
   if not defined YOSYS (
     set YOSYS=%1
     set IVERILOG=%1
