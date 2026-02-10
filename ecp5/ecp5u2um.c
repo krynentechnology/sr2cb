@@ -216,7 +216,9 @@ int main(int argc, char** argv)
 
         if ( memcmp( &buffer[0], program_done_cmd, sizeof( program_done_cmd )) == 0 ) {
             break; // Leave while loop!
-        } else if ( ecp5Device.configFrames && ( bufferCrcMask & 1 )) {
+        }
+
+        if ( ecp5Device.configFrames && ( bufferCrcMask & 1 )) {
             // CRC starts with verify_id command
             crcCommands = crc16( crcCommands, buffer[0] );
             crcNbBytes++;
@@ -230,7 +232,7 @@ int main(int argc, char** argv)
                     fseek( pFile, ( filePos - 8 ), SEEK_SET );
                     fwrite( pCrc, 1, 1, pFile ); // Update CRC high byte!
                     fwrite( --pCrc, 1, 1, pFile ); // Update CRC low byte!
-                    fseek( pFile, filePos, SEEK_SET );
+                    break; // Leave while loop!
                 }
 
                 if ( nbFrames && ( nbFrames != ecp5Device.configFrames )) {
@@ -251,7 +253,17 @@ int main(int argc, char** argv)
 
         if ( !bLine ) {
             text[i+1] = '\0';
-            printf( "  %s\n", text );
+
+            for ( ; i < 15 ; i++ ) {
+
+                if ( !( i % 2 )) {
+                    printf( " " );
+                }    
+                
+                printf( "  " );
+            }
+
+            printf( " %s\n", text );
         }
 
         printf( "\nconfigFrames = %d\ndataBitsFrame = %d\n", ecp5Device.configFrames, ecp5Device.dataBitsFrame );
